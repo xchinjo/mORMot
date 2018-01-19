@@ -341,7 +341,7 @@ begin
     PDouble(@fTemp64)^ := Iso8601ToDateTimePUTF8Char(P,0);
   sftTimeLog, sftModTime, sftCreateTime:
     PDouble(@fTemp64)^ := TimeLogToDateTime(GetInt64(P));
-  sftUnixTime:
+  sftUnixTime,sftModUTime,sftCreateUTime:
     PDouble(@fTemp64)^ := UnixTimeToDateTime(GetInt64(P));
   sftUnixMSTime:
     PDouble(@fTemp64)^ := UnixMSTimeToDateTime(GetInt64(P));

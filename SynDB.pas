@@ -4254,7 +4254,10 @@ var Stmt: TSQLDBStatement;
     ToCache: boolean;
     ndx,altern: integer;
     cachedSQL: RawUTF8;
+    Log:ISynLog;
 begin
+  Log := SynDBLog.Enter(Self);
+
   fErrorMessage := '';
   if length(aSQL)<5 then begin
     result := nil;
@@ -4295,6 +4298,9 @@ begin
   try
     InternalProcess(speActive);
     try
+
+      //Log.Log(sllCustom2,'ABCSoft --->  #009 TSQLDBConnection.NewStatementPrepared');
+
       Stmt := NewStatement;
       Stmt.Prepare(aSQL,ExpectResults);
       if ToCache then begin
@@ -7355,7 +7361,11 @@ var P,B: PUTF8Char;
     num: integer;
     maxSize,maxAllowed: cardinal;
     W: TTextWriter;
+    Log:ISynLog;
 begin
+  Log := SynDBLog.Enter(Self);
+  //Log.Log(sllCustom3,'ABCSoft --->  #008 TSQLDBStatement.GetSQLWithInlinedParams');
+
   try
     P := pointer(fSQL);
     if P=nil then begin
@@ -7544,8 +7554,14 @@ end;
 procedure TSQLDBStatement.Prepare(const aSQL: RawUTF8;
   ExpectResults: Boolean);
 var L: integer;
+    Log:ISynLog;
 begin
+
+  Log := SynDBLog.Enter(Self,nil,true);
+
   Connection.InternalProcess(speActive);
+  //Log.Log(sllCustom1,'ABCSoft --->  #001 TSQLDBStatement.Prepare');
+
   try
     L := length(aSQL);
     if StripSemicolon then
@@ -8272,7 +8288,11 @@ begin
 end;
 
 function TSQLDBProxyConnection.NewStatement: TSQLDBStatement;
-begin // always create a new proxy statement instance (cached on remote side)
+var // always create a new proxy statement instance (cached on remote side)
+    Log:ISynLog;
+begin
+  Log := SynDBLog.Enter(Self,nil,true);
+  //Log.Log(sllCustom1,'ABCSoft --->  #003 TSQLDBProxyConnection.NewStatement');
   result := TSQLDBProxyStatement.Create(self);
 end;
 
@@ -8567,6 +8587,7 @@ end;
 
 procedure TSQLDBProxyStatement.ParamsToCommand(var Input: TSQLDBProxyConnectionCommandExecute);
 begin
+
   if (fColumnCount>0) or (fDataInternalCopy<>'') then
     raise ESQLDBException.CreateUTF8('Invalid %.ExecutePrepared* call',[self]);
   Input.SQL := fSQL;

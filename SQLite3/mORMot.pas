@@ -1385,6 +1385,8 @@ type
   // - could be defined as value in a TSQLRecord property as such:
   // ! property LastModif: TModTime read fLastModif write fLastModif;
   TModTime = type TTimeLog;
+  TModUTime = type TUnixTime;
+
 
   /// an Int64-encoded date and time of the record creation
   // - can be used as published property field in TSQLRecord for sftCreateTime:
@@ -1398,6 +1400,7 @@ type
   // - could be defined as value in a TSQLRecord property as such:
   // ! property CreatedAt: TModTime read fCreatedAt write fCreatedAt;
   TCreateTime = type TTimeLog;
+  TCreateUTime = type TUnixTime;
 
   /// the Int64/TID of the TSQLAuthUser currently logged   
   // - can be used as published property field in TSQLRecord for sftSessionUserID:
@@ -1579,6 +1582,8 @@ type
     sftMany,
     sftModTime,
     sftCreateTime,
+    sftModUTime,
+    sftCreateUTime,
     sftTID,
     sftRecordVersion,
     sftSessionUserID,
@@ -21135,6 +21140,8 @@ const
      ftUnknown,   // sftMany
      ftInt64,     // sftModTime
      ftInt64,     // sftCreateTime
+     ftInt64,     // sftModUTime
+     ftInt64,     // sftCreateUTime
      ftInt64,     // sftTID
      ftInt64,     // sftRecordVersion = TRecordVersion
      ftInt64,     // sftSessionUserID
@@ -21277,7 +21284,7 @@ const
  //                   sftVariant, sftNullable       sftBlob,sftBlobDynArray,
     {$ifndef NOVARIANTS} varNull, varNull, {$endif} varString, varNull,
  // sftBlobCustom, sftUTF8Custom, sftMany, sftModTime, sftCreateTime, sftTID,
-    varString,      varString,    varEmpty, varInt64,  varInt64,     varInt64,
+    varString,      varString,    varEmpty, varInt64,  varInt64,varInt64,  varInt64,   varInt64,
  // sftRecordVersion, sftSessionUserID, sftDateTimeMS, sftUnixTime, sftUnixMSTime
     varInt64, varInt64, varDate, varInt64, varInt64);
 var err: integer;
@@ -21480,7 +21487,7 @@ begin
         C := TSQLPropInfoRTTIEnum;
       sftTimeLog, sftModTime, sftCreateTime: // specific class for further use
         C := TSQLPropInfoRTTITimeLog;
-      sftUnixTime: // specific class for further use
+      sftUnixTime,sftModUTime, sftCreateUTime: // specific class for further use
         C := TSQLPropInfoRTTIUnixTime;
       sftUnixMSTime:
         C := TSQLPropInfoRTTIUnixMSTime;
@@ -25042,7 +25049,7 @@ begin
     end else
     if expandTimeLogAsText then
     case ContentType of
-    sftTimeLog,sftModTime,sftCreateTime,sftUnixTime: begin
+    sftTimeLog,sftModTime,sftCreateTime,sftModUTime,sftCreateUTime,sftUnixTime: begin
       SetInt64(V,t.Value);
       if t.Value=0 then
         value := 0 else begin
@@ -25420,7 +25427,7 @@ begin
   sftInteger, // TSQLTable.InitFieldTypes may have recognized an integer
   sftTimeLog, sftModTime, sftCreateTime:
     result := TimeLogToDateTime(GetInt64(P));
-  sftUnixTime:
+  sftUnixTime,sftModUTime, sftCreateUTime:
     result := UnixTimeToDateTime(GetInt64(P));
   sftUnixMSTime: 
     result := UnixMSTimeToDateTime(GetInt64(P));
@@ -26312,6 +26319,8 @@ var
     nil,
     UTF8CompareInt64,    // TModTime
     UTF8CompareInt64,    // TCreateTime
+    UTF8CompareInt64,    // TModUTime
+    UTF8CompareInt64,    // TCreateUTime
     UTF8CompareInt64,    // TID
     UTF8CompareInt64,    // TRecordVersion
     UTF8CompareInt64,    // TSessionUserID
@@ -27219,12 +27228,12 @@ begin
     exit;
   end;
   // special cases: conversion from INTEGER to text before search
-  if Kind in [sftTimeLog,sftModTime,sftCreateTime,sftUnixTime,sftUnixMSTime] then
+  if Kind in [sftTimeLog,sftModTime,sftCreateTime,sftUnixTime,sftUnixMSTime,sftModUTime,sftCreateUTime] then
     while cardinal(result)<=cardinal(fRowCount) do begin
       SetInt64(U^,Val64);
       if Val64<>0 then begin
         case Kind of
-        sftUnixTime:
+        sftUnixTime,sftModUTime,sftCreateUTime:
           ValTimeLog.FromUnixTime(Val64);
         sftUnixMSTime: // seconds resolution is enough for value search
           ValTimeLog.FromUnixMSTime(Val64);
@@ -27444,7 +27453,7 @@ IsDateTime:
       end;
       sftTimeLog, sftModTime, sftCreateTime:
         goto IsDateTime;
-      sftUnixTime: begin
+      sftUnixTime,sftModUTime, sftCreateUTime: begin
         ValueTimeLog.FromUnixTime(Value);
         goto IsDateTime;
       end;
@@ -30007,6 +30016,14 @@ begin // very fast, thanks to the TypeInfo() compiler-generated function
       end else
       if @self=TypeInfo(TModTime) then begin
         result := sftModTime;
+        exit;
+      end else
+      if @self=TypeInfo(TCreateUTime) then begin
+        result := sftCreateUTime;
+        exit;
+      end else
+      if @self=TypeInfo(TModUTime) then begin
+        result := sftModUTime;
         exit;
       end else
       if @self=TypeInfo(TTimeLog) then begin
@@ -32892,19 +32909,46 @@ begin
     with RecordProps do begin
       integer(types) := 0;
       if sftModTime in HasTypeFields then
-        include(types,sftModTime);
+          include(types,sftModTime);
       if (sftCreateTime in HasTypeFields) and (aOccasion=seAdd) then
         include(types,sftCreateTime);
+
+
+
       if integer(types)<>0 then begin
-        i64 := aRest.ServerTimestamp;
+        i64 := aRest.ServerTimestamp;  // set modify / create time time
         for F := 0 to Fields.Count-1 do
         with TSQLPropInfoRTTIInt64(Fields.List[f]) do
         if SQLFieldType in types then
           fPropInfo.SetInt64Prop(Self,i64);
       end;
+
+
+      if sftModUTime in HasTypeFields then  // Shadow modify / create Unix Time
+      begin
+
+        if i64<>0 then
+          for F := 0 to Fields.Count-1 do
+          with TSQLPropInfoRTTIUnixTime(Fields.List[f]) do
+          if SQLFieldType=sftModUTime then
+            fPropInfo.SetInt64Prop(Self,TimeLogToUnixTime(i64));
+
+          //include(types,sftModUTime);
+      end;
+      if (sftCreateUTime in HasTypeFields) and (aOccasion=seAdd) then
+      begin
+        if i64<>0 then
+          for F := 0 to Fields.Count-1 do
+          with TSQLPropInfoRTTIUnixTime(Fields.List[f]) do
+          if SQLFieldType=sftCreateUTime then
+            fPropInfo.SetInt64Prop(Self,TimeLogToUnixTime(i64));
+         // include(types,sftCreateUTime);
+      end;
+
+
       if sftSessionUserID in HasTypeFields then begin
-        i64 := aRest.GetCurrentSessionUserID;
-        if i64<>0 then 
+        i64 := aRest.GetCurrentSessionUserID; // set usession user id
+        if i64<>0 then
           for F := 0 to Fields.Count-1 do
           with TSQLPropInfoRTTIInt64(Fields.List[f]) do
           if SQLFieldType=sftSessionUserID then
@@ -35493,13 +35537,14 @@ begin
     if (Value.fFill<>nil) and (Value.fFill.Table<>nil) and
        (Value.fFill.fTableMapRecordManyInstances=nil) then
       // within FillPrepare/FillOne loop: update ID, TModTime and mapped fields
-      FieldBits := Value.fFill.fTableMapFields+Value.RecordProps.FieldBits[sftModTime] else
+        FieldBits := Value.fFill.fTableMapFields+Value.RecordProps.FieldBits[sftModTime]+Value.RecordProps.FieldBits[sftModUTime]
+      else
       // update all simple/custom fields (also for FillPrepareMany)
       FieldBits := Value.RecordProps.SimpleFieldsBits[soUpdate] else
     // CustomFields<>[] -> update specified (and TModTime fields)
     if DoNotAutoComputeFields then
       FieldBits := CustomFields else
-      FieldBits := CustomFields+Value.RecordProps.FieldBits[sftModTime];
+      FieldBits := CustomFields+Value.RecordProps.FieldBits[sftModTime]+Value.RecordProps.FieldBits[sftModUTime];
   if IsZero(FieldBits) then begin
     result := true; // a TSQLRecord with NO simple fields (e.g. ID/blob pair)
     exit;
@@ -41544,6 +41589,7 @@ var Ctxt: TSQLRestServerURIContext;
 begin
   {$ifdef WITHLOG}
   log := fLogClass.Enter('URI(% % inlen=%)',[Call.Method,Call.Url,length(Call.InBody)],self);
+  //log.Log(sllCustom4,'ABCSoft --->  #014 procedure TSQLRestServer.URI');
   {$endif}
   QueryPerformanceCounter(timeStart);
   fStats.AddCurrentRequestCount(1);
@@ -50046,6 +50092,9 @@ var i,j, nProps: integer;
     F: TSQLPropInfo;
 label Simple, Small, Copiabl;
 begin
+
+  //Log.Log(sllCustom4,'ABCSoft ---> add HasType Field TSQLRecordProperties.Create');
+
   InitializeCriticalSection(fLock);
   if aTable=nil then
     raise EModelException.Create('TSQLRecordProperties.Create(nil)');
@@ -50157,11 +50206,11 @@ begin
         inc(nBlobCustom);
         goto Simple;
       end;
-      sftCreateTime: begin
+      sftCreateTime,sftCreateUTime: begin
         include(ComputeBeforeAddFieldsBits,i);
         goto Small;
       end;
-      sftModTime, sftSessionUserID: begin
+      sftModTime,sftModUTime, sftSessionUserID: begin
         include(ComputeBeforeAddFieldsBits,i);
         include(ComputeBeforeUpdateFieldsBits,i);
         goto Small;
@@ -50292,6 +50341,8 @@ const
     '',                              // sftMany
     ' INTEGER, ',                    // sftModTime
     ' INTEGER, ',                    // sftCreateTime
+    ' INTEGER, ',                    // sftModUTime
+    ' INTEGER, ',                    // sftCreateUTime
     ' INTEGER, ',                    // sftTID
     ' INTEGER, ',                    // sftRecordVersion
     ' INTEGER, ',                    // sftSessionUserID
@@ -50937,7 +50988,7 @@ var Added: boolean;
               Add('"',',');
               exit;
             end;
-            sftUnixTime: begin
+            sftUnixTime,sftModUtime,sftCreateUTime: begin
               Add('"');
               AddUnixTime(@V64);
               Add('"',',');

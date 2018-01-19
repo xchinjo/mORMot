@@ -732,6 +732,8 @@ constructor TSQLRestStorageExternal.Create(aClass: TSQLRecordClass;
        ftInt64,     // sftMany
        ftInt64,     // sftModTime
        ftInt64,     // sftCreateTime
+       ftInt64,     // sftModUTime
+       ftInt64,     // sftCreateUTime
        ftInt64,     // sftTID
        ftInt64,     // sftRecordVersion
        ftInt64,     // sftSessionUserID
@@ -1605,7 +1607,11 @@ end;
 function TSQLRestStorageExternal.ExecuteInlined(const aSQL: RawUTF8;
   ExpectResults: Boolean): ISQLDBRows;
 var stmt: ISQLDBStatement;
+    Log:ISynLog;
 begin
+  Log := SynDBLog.Enter(Self,nil,true);
+  //Log.Log(sllCustom1,'ABCSoft --->  #002 TSQLRestStorageExternal.ExecuteInlined');
+
   result := nil; // returns nil interface on error
   if self=nil then
     exit;
@@ -1850,7 +1856,10 @@ var Decoder: TJSONObjectDecoder;
     InsertedID: TID;
     F: integer;
     Query: ISQLDBStatement;
+    Log:ISynLog;
 begin
+  Log := SynDBLog.Enter(Self);
+  //Log.Log(sllCustom4,'ABCSoft --->  #010 TSQLRestStorageExternal.ExecuteFromJSON');
   result := 0;
   StorageLock(false,'ExecuteFromJson'); // avoid race condition against max(ID)
   try
@@ -1887,6 +1896,7 @@ begin
     if Query=nil then
       exit;
     try
+      //Log.Log(sllCustom4,'ABCSoft --->  #011 Query.Bind Values');
       for F := 0 to Decoder.FieldCount-1 do
       if Decoder.FieldTypeApproximation[F]=ftaNull then
         Query.BindNull(F+1) else
@@ -1922,7 +1932,11 @@ function TSQLRestStorageExternal.JSONDecodedPrepareToSQL(
   out Types: TSQLDBFieldTypeArray; Occasion: TSQLOccasion;
   BatchOptions: TSQLRestBatchOptions): RawUTF8;
 var f,k: Integer;
+    Log:ISynLog;
 begin
+  Log := SynDBLog.Enter(Self);
+  //Log.Log(sllCustom2,'ABCSoft --->  #013 TSQLRestStorageExternal.JSONDecodedPrepareToSQL');
+
   SetLength(ExternalFields,Decoder.FieldCount);
   for f := 0 to Decoder.FieldCount-1 do begin
     k := fStoredClassRecordProps.Fields.IndexByNameOrExcept(Decoder.FieldNames[f]);

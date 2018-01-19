@@ -12956,6 +12956,14 @@ function TimeLogFromDateTime(DateTime: TDateTime): TTimeLog;
 function TimeLogToDateTime(const Timestamp: TTimeLog): TDateTime; overload;
   {$ifdef HASINLINE}inline;{$endif}
 
+  /// Date/Time conversion from a TTimeLog value
+// - handle TTimeLog bit-encoded Int64 format
+// - just a wrapper around PTimeLogBits(@Timestamp)^.ToDateTime
+// - we defined such a function since TTimeLogBits(aTimeLog).ToDateTime gives an
+// internall compiler error on some Delphi IDE versions (e.g. Delphi 6)
+function TimeLogToUnixTime(const Timestamp: TTimeLog): TUnixTime; // overload;
+  {$ifdef HASINLINE}inline;{$endif}
+
 /// convert a Iso8601 encoded string into a TTimeLog value
 // - handle TTimeLog bit-encoded Int64 format
 // - use this function only for fast comparaison between two Iso8601 date/time
@@ -35180,6 +35188,13 @@ function TimeLogToDateTime(const Timestamp: TTimeLog): TDateTime;
 begin
   result := PTimeLogBits(@Timestamp)^.ToDateTime;
 end;
+
+function TimeLogToUnixTime(const Timestamp: TTimeLog): TUnixTime;
+begin
+  result := PTimeLogBits(@Timestamp)^.ToUnixTime;
+end;
+
+
 
 procedure DateToIso8601PChar(P: PUTF8Char; Expanded: boolean; Y,M,D: cardinal); overload;
 // use 'YYYYMMDD' format if not Expanded, 'YYYY-MM-DD' format if Expanded
