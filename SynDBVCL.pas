@@ -310,6 +310,10 @@ begin
       fTemp64 := FromVarInt64(PByte(result));
       result := @fTemp64;
     end;
+    SynCommons.ftDate: begin
+      fTemp64 := FromVarInt64(PByte(result));
+      result := @fTemp64;
+    end;
     SynCommons.ftCurrency: begin // ftFloat expects a DOUBLE value
       PDouble(@fTemp64)^ := PCurrency(result)^;
       result := @fTemp64;
