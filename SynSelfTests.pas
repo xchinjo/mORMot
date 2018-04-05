@@ -107,7 +107,7 @@ unit SynSelfTests;
 
 interface
 
-{$I Synopse.inc} // define HASINLINE USETYPEINFO CPU32 CPU64 SQLITE3_FASTCALL
+{$I Synopse.inc} // define HASINLINE USETYPEINFO CPU32 CPU64
 
 {$ifdef ISDELPHIXE}
   // since Delphi XE, we have unit System.RegularExpressionsAPI available
@@ -119,40 +119,40 @@ interface
 
 uses
   {$ifdef MSWINDOWS}
-  Windows,
+    Windows,
   {$else}
-  {$ifdef KYLIX3}
-  Types,
-  LibC,
-  SynKylix,
-  {$endif}
-  {$ifdef FPC}
-  SynFPCLinux,
-  BaseUnix,
-  {$endif}
+    {$ifdef KYLIX3}
+    Types,
+    LibC,
+    SynKylix,
+    {$endif}
+    {$ifdef FPC}
+    SynFPCLinux,
+    BaseUnix,
+    {$endif}
   {$endif}
   Classes,
   SynCrtSock,
   SynTable, // for TSynTableStatement
-{$ifndef NOVARIANTS}
-  SynMongoDB,
-  SynMustache,
-  Variants,
-{$endif}
-{$ifdef UNICODE}
-  Generics.Collections,
-{$endif}
+  {$ifndef NOVARIANTS}
+    SynMongoDB,
+    SynMustache,
+    Variants,
+  {$endif}
+  {$ifdef UNICODE}
+    Generics.Collections,
+  {$endif}
   SysUtils,
-{$ifndef LVCL}
-  Contnrs,
-  {$ifdef MSWINDOWS}
-  SynOleDB,
-  {$ifndef FPC}
-  SynGdiPlus,
-  SynPdf,
-  {$endif}
-  {$endif}
-{$endif LVCL}
+  {$ifndef LVCL}
+    Contnrs,
+    {$ifdef MSWINDOWS}
+    SynOleDB,
+    {$ifndef FPC}
+      SynGdiPlus,
+      SynPdf,
+    {$endif}
+    {$endif}
+  {$endif LVCL}
   SynEcc,
   SynDB,
   SynSQLite3,
@@ -160,36 +160,36 @@ uses
   SynDBSQLite3,
   SynDBRemote,
   SynDBODBC,
-{$ifndef DELPHI5OROLDER}
-  mORMot,
-  mORMotDB,
-  mORMotSQLite3,
-  mORMotHttpServer,
-  mORMotHttpClient,
-  {$ifndef NOVARIANTS}
-  mORMotMongoDB,
-  mORMotMVC,
-  {$endif}
-  SynBidirSock,
-  mORMotDDD,
-  dddDomUserTypes,
-  dddDomUserInterfaces,
-  dddDomAuthInterfaces,
-  dddInfraEmail,
-  dddInfraEmailer,
-  dddInfraAuthRest,
-  dddInfraRepoUser,
-  ECCProcess,
-{$endif DELPHI5OROLDER}
+  {$ifndef DELPHI5OROLDER}
+    mORMot,
+    mORMotDB,
+    mORMotSQLite3,
+    mORMotHttpServer,
+    mORMotHttpClient,
+    {$ifndef NOVARIANTS}
+      mORMotMongoDB,
+      mORMotMVC,
+    {$endif}
+    SynBidirSock,
+    mORMotDDD,
+    dddDomUserTypes,
+    dddDomUserInterfaces,
+    dddDomAuthInterfaces,
+    dddInfraEmail,
+    dddInfraEmailer,
+    dddInfraAuthRest,
+    dddInfraRepoUser,
+    ECCProcess,
+  {$endif DELPHI5OROLDER}
   SynProtoRTSPHTTP,
-{$ifdef TEST_REGEXP}
-  SynSQLite3RegEx,
-{$endif TEST_REGEXP}
-{$ifdef MSWINDOWS}
-{$ifdef USEZEOS}
-  SynDBZeos,
-{$endif}
-{$endif}
+  {$ifdef TEST_REGEXP}
+    SynSQLite3RegEx,
+  {$endif TEST_REGEXP}
+  {$ifdef MSWINDOWS}
+    {$ifdef USEZEOS}
+      SynDBZeos,
+    {$endif}
+  {$endif}
   SynCommons,
   SynLog,
   SynTests;
@@ -305,8 +305,11 @@ type
     da: IObjectDynArray; // force the interface to be defined BEFORE the array
     a: array of TSQLRecordPeople;
     {$endif}
+    fAdd,fDel: RawUTF8;
     fQuickSelectValues: TIntegerDynArray;
     function QuickSelectGT(IndexA,IndexB: PtrInt): boolean;
+    procedure intadd(const Sender; Value: integer);
+    procedure intdel(const Sender; Value: integer);
   published
     /// the faster CopyRecord function, enhancing the system.pas unit
     procedure SystemCopyRecord;
@@ -347,12 +350,16 @@ type
     /// low level fast Integer or Floating-Point to/from string conversion
     // - especially the RawUTF8 or PUTF8Char relative versions
     procedure NumericalConversions;
+    /// test low-level integer/Int64 functions
+    procedure Integers;
     /// test crc32c in both software and hardware (SSE4.2) implementations
     procedure _crc32c;
     /// test RDRAND Intel x86/x64 opcode if available, or fast gsl_rng_taus2
     procedure _Random32;
     /// test TSynBloomFilter class
     procedure BloomFilters;
+    /// test DeltaCompress/DeltaExtract functions
+    procedure _DeltaCompress;
     /// the new fast Currency to/from string conversion
     procedure Curr64;
     /// the camel-case / camel-uncase features, used for i18n from Delphi RTII
@@ -391,6 +398,8 @@ type
     procedure _TSynUniqueIdentifier;
     /// test the TSynDictionary class
     procedure _TSynDictionary;
+    /// validate the TSynQueue class
+    procedure _TSynQueue;
   end;
 
   /// this test case will test most low-level functions, classes and types
@@ -518,7 +527,7 @@ type
     /// JWT classes
     procedure _JWT;
     {$endif NOVARIANTS}
-    /// compute some performance numbers, mostly against regression 
+    /// compute some performance numbers, mostly against regression
     procedure Benchmark;
   end;
 
@@ -638,7 +647,6 @@ type
     // - use all RESTful commands (GET/UDPATE/POST/DELETE...)
     // - test the 'many to many' features (i.e. TSQLRecordMany) and dynamic
     // arrays published properties handling
-    // - also test FTS implementation if INCLUDE_FTS3 conditional is defined
     // - test dynamic tables
     procedure _TSQLRestClientDB;
     {$ifdef TEST_REGEXP}
@@ -739,6 +747,12 @@ type
     // - it runs 1000 remote SQL queries, and check the JSON data retrieved
     // - the time elapsed for this step is computed, and displayed on the report
     procedure HTTPClientEncrypted;
+    /// validates TSQLRest.SetCustomEncryption process with AES+SHA
+    procedure HTTPClientCustomEncryptionAesSha;
+    /// validates TSQLRest.SetCustomEncryption process with only AES
+    procedure HTTPClientCustomEncryptionAes;
+    /// validates TSQLRest.SetCustomEncryption process with only SHA
+    procedure HTTPClientCustomEncryptionSha;
 {
     /// validate the HTTP/1.1 client multi-query implementation with one
     // connection for all queries, and the THttpServer class instead
@@ -840,7 +854,7 @@ type
     procedure AutoAdaptSQL;
     /// check the per-db encryption
     // - the testpass.db3-wal file is not encrypted, but the main
-    // testpass.db3 file will (after the first 1024 bytes)
+    // testpass.db3 file will
     procedure CryptedDatabase;
     /// test external DB implementation via faster REST calls
     // - will mostly call directly the TSQLRestStorageExternal instance,
@@ -1133,7 +1147,7 @@ type
     /// convert a floating-point value into text
     function ToTextFunc(Value: double): string;
     /// swap two by-reference floating-point values
-    // - would validate pointer use instead of XMM1/XMM2 registers under Win64 
+    // - would validate pointer use instead of XMM1/XMM2 registers under Win64
     procedure Swap(var n1,n2: double);
     // test unaligned stack access
     function StackIntMultiply(n1,n2,n3,n4,n5,n6,n7,n8,n9,n10: integer): Int64;
@@ -1229,9 +1243,9 @@ type
   ITestPerThread = interface(IInvokable)
     ['{202B6C9F-FCCB-488D-A425-5472554FD9B1}']
     function GetContextServiceInstanceID: PtrUInt;
-    function GetThreadIDAtCreation: TThreadID;
-    function GetCurrentThreadID: TThreadID;
-    function GetCurrentRunningThreadID: TThreadID;
+    function GetThreadIDAtCreation: PtrUInt;
+    function GetCurrentThreadID: PtrUInt;
+    function GetCurrentRunningThreadID: PtrUInt;
   end;
 
   /// a test value object, used by IUserRepository/ISmsSender interfaces
@@ -1555,11 +1569,77 @@ begin
   Check(AnsiIComp('abcD','ABcF')=StrComp(PAnsiChar('ABCD'),PAnsiChar('ABCF')));
   Check(StrIComp(PAnsiChar('abcD'),PAnsiChar('ABcd'))=AnsiIComp('abcD','ABcd'));
   Check(StrIComp(PAnsiChar('abcD'),PAnsiChar('ABcF'))=AnsiIComp('ABCD','ABCF'));
+  Check(strcspn(PAnsiChar('ab'),PAnsiChar('a'#0))=0);
+  Check(strcspn(PAnsiChar('ab'),PAnsiChar('b'#0))=1);
+  Check(strcspn(PAnsiChar('1234ab'),PAnsiChar('a'#0))=4);
+  Check(strcspn(PAnsiChar('12345ab'),PAnsiChar('a'#0))=5);
+  Check(strcspn(PAnsiChar('123456ab'),PAnsiChar('a'#0))=6);
+  Check(strcspn(PAnsiChar('1234567ab'),PAnsiChar('a'#0))=7);
+  Check(strcspn(PAnsiChar('12345678ab'),PAnsiChar('a'#0))=8);
+  Check(strcspn(PAnsiChar('1234ab'),PAnsiChar('c'#0))=6);
+  Check(strcspnpas(PAnsiChar('ab'),PAnsiChar('a'#0))=0);
+  Check(strcspnpas(PAnsiChar('ab'),PAnsiChar('b'#0))=1);
+  Check(strcspnpas(PAnsiChar('1234ab'),PAnsiChar('a'#0))=4);
+  Check(strcspnpas(PAnsiChar('12345ab'),PAnsiChar('a'#0))=5);
+  Check(strcspnpas(PAnsiChar('123456ab'),PAnsiChar('a'#0))=6);
+  Check(strcspnpas(PAnsiChar('1234567ab'),PAnsiChar('a'#0))=7);
+  Check(strcspnpas(PAnsiChar('12345678ab'),PAnsiChar('a'#0))=8);
+  Check(strcspnpas(PAnsiChar('1234ab'),PAnsiChar('c'#0))=6);
+  Check(strcspnpas(PAnsiChar('12345678901234567ab'),PAnsiChar('cccccccccccccccccccd'))=19);
+  Assert(strspn(PAnsiChar('abcdef'),PAnsiChar('debca'))=5);
+  Assert(strspn(PAnsiChar('baabbaabcd'),PAnsiChar('ab'))=8);
+  Assert(strspnpas(PAnsiChar('abcdef'),PAnsiChar('g'#0))=0);
+  Assert(strspnpas(PAnsiChar('abcdef'),PAnsiChar('a'#0))=1);
+  Assert(strspnpas(PAnsiChar('bbcdef'),PAnsiChar('b'#0))=2);
+  Assert(strspnpas(PAnsiChar('bbcdef'),PAnsiChar('bf'))=2);
+  Assert(strspnpas(PAnsiChar('bcbdef'),PAnsiChar('cb'))=3);
+  Assert(strspnpas(PAnsiChar('baabcd'),PAnsiChar('ab'))=4);
+  Assert(strspnpas(PAnsiChar('abcdef'),PAnsiChar('debca'))=5);
+  Assert(strspnpas(PAnsiChar('baabbaabcd'),PAnsiChar('ab'))=8);
+  Assert(strspnpas(PAnsiChar('baabbaabbaabcd'),PAnsiChar('ab'))=12);
+  Assert(strspnpas(PAnsiChar('baabbaabbaabbabcd'),PAnsiChar('ab'))=15);
+  Assert(strspnpas(PAnsiChar('baabbaabbaabbaabcd'),PAnsiChar('ab'))=16);
+  Assert(strspnpas(PAnsiChar('baabbaabbaababaabcd'),PAnsiChar('ab'))=17);
+  {$ifdef CPUINTEL}
+  if cfSSE42 in CpuFeatures then begin
+    Check(strcspnsse42(PAnsiChar('ab'),PAnsiChar('a'#0))=0);
+    Check(strcspnsse42(PAnsiChar('ab'),PAnsiChar('b'#0))=1);
+    Check(strcspnsse42(PAnsiChar('1234ab'),PAnsiChar('a'#0))=4);
+    Check(strcspnsse42(PAnsiChar('12345ab'),PAnsiChar('a'#0))=5);
+    Check(strcspnsse42(PAnsiChar('123456ab'),PAnsiChar('a'#0))=6);
+    Check(strcspnsse42(PAnsiChar('1234567ab'),PAnsiChar('a'#0))=7);
+    Check(strcspnsse42(PAnsiChar('12345678ab'),PAnsiChar('a'#0))=8);
+    Check(strcspnsse42(PAnsiChar('123456789ab'),PAnsiChar('a'#0))=9);
+    Check(strcspnsse42(PAnsiChar('1234ab'),PAnsiChar('c'#0))=6);
+    Check(strcspnsse42(PAnsiChar('123456789012345ab'),PAnsiChar('a'#0))=15);
+    Check(strcspnsse42(PAnsiChar('1234567890123456ab'),PAnsiChar('a'#0))=16);
+    Check(strcspnsse42(PAnsiChar('12345678901234567ab'),PAnsiChar('a'#0))=17);
+    Check(strcspnsse42(PAnsiChar('12345678901234567ab'),PAnsiChar('cccccccccccccca'))=17);
+    Check(strcspnsse42(PAnsiChar('12345678901234567ab'),PAnsiChar('ccccccccccccccca'))=17);
+    Check(strcspnsse42(PAnsiChar('12345678901234567ab'),PAnsiChar('cccccccccccccccca'))=17);
+    Check(strcspnsse42(PAnsiChar('12345678901234567ab'),PAnsiChar('ccccccccccccccccca'))=17);
+    Check(strcspnsse42(PAnsiChar('12345678901234567ab'),PAnsiChar('ccccccccccccccccccca'))=17);
+    Check(strcspnsse42(PAnsiChar('12345678901234567ab'),PAnsiChar('cccccccccccccccccccd'))=19);
+    Check(strspnsse42(PAnsiChar('abcdef'),PAnsiChar('g'#0))=0);
+    Check(strspnsse42(PAnsiChar('abcdef'),PAnsiChar('a'#0))=1);
+    Check(strspnsse42(PAnsiChar('bbcdef'),PAnsiChar('b'#0))=2);
+    Check(strspnsse42(PAnsiChar('bbcdef'),PAnsiChar('bf'))=2);
+    Check(strspnsse42(PAnsiChar('bcbdef'),PAnsiChar('cb'))=3);
+    Check(strspnsse42(PAnsiChar('baabcd'),PAnsiChar('ab'))=4);
+    Check(strspnsse42(PAnsiChar('abcdef'),PAnsiChar('debca'))=5);
+    Check(strspnsse42(PAnsiChar('baabbaabcd'),PAnsiChar('ab'))=8);
+    Check(strspnsse42(PAnsiChar('baabbaabbaabcd'),PAnsiChar('ab'))=12);
+    Check(strspnsse42(PAnsiChar('baabbaabbaabbabcd'),PAnsiChar('ab'))=15);
+    Check(strspnsse42(PAnsiChar('baabbaabbaabbaabcd'),PAnsiChar('ab'))=16);
+    Check(strspnsse42(PAnsiChar('baabbaabbaababaabcd'),PAnsiChar('ab'))=17);
+  end;
+  {$endif CPUINTEL}
 end;
 
 procedure TTestLowLevelCommon.IniFiles;
 var Content,S,N,V: RawUTF8;
     Si,Ni,Vi,i,j: integer;
+    P: PUTF8Char;
 begin
   Content := '';
   Randomize;
@@ -1585,6 +1665,13 @@ begin
     Exit;
   S := StringFromFile('test2.ini');
   Check(S=Content,'test2.ini');
+  Content := 'abc'#13#10'def'#10'ghijkl'#13'1234567890';
+  P := pointer(Content);
+  Check(GetNextLine(P,P)='abc');
+  Check(GetNextLine(P,P)='def');
+  Check(GetNextLine(P,P)='ghijkl');
+  Check(GetNextLine(P,P)='1234567890');
+  Check(P=nil);
 end;
 
 procedure TTestLowLevelCommon.Soundex;
@@ -2615,10 +2702,6 @@ type TR = record
 var A,B,C: TR;
     i: integer;
 begin
-  if Pos('Using mORMot',Owner.CustomVersions)=0 then
-    Owner.CustomVersions := Owner.CustomVersions+#13#10'Using mORMot '+
-      SYNOPSE_FRAMEWORK_FULLVERSION+#13#10'Running on '+string(OSVersionText)
-      {$ifdef MSWINDOWS}+' with code page '+IntToString(GetACP){$endif};
   FillCharFast(A,sizeof(A),0);
   for i := 0 to High(A.Bulk) do
     A.Bulk[i] := i;
@@ -2650,7 +2733,6 @@ begin
   Check(A.Dyn[0]=0);
   for i := 0 to High(B.Bulk) do
     Check(B.Bulk[i]=i);
-  Check(CompareMem(@A,@A,0));
   for i := 0 to High(B.Bulk) do
     Check(CompareMem(@A.Bulk,@B.Bulk,i));
   FillCharFast(A.Bulk,sizeof(A.Bulk),255);
@@ -2793,25 +2875,80 @@ end;
 procedure TTestLowLevelCommon._IsMatch;
 var i: integer;
     V: RawUTF8;
+    match: TMatch;
 begin
+  Check(IsMatch('','',true));
+  Check(not IsMatch('','toto',true));
+  Check(not IsMatch('Bidule.pas','',true));
+  Check(IsMatch('Bidule.pas','Bidule.pas',true));
+  Check(IsMatch('Bidule.pas','Bidule.pas',false));
+  Check(not IsMatch('Bidule.pas','bidule.pas',false));
   for i := 0 to 200 do begin
     V := Int32ToUtf8(i);
     Check(IsMatch(V,V,false)=IsMatch(V,V,true));
   end;
+  Check(IsMatch('test*','test',false));
+  Check(IsMatch('test*','test',true));
+  Check(IsMatch('test*','teste',false));
+  Check(IsMatch('test*','teste',true));
+  Check(IsMatch('test*','tester',false));
+  Check(IsMatch('test*','tester',true));
+  Check(IsMatch('a*','anything',true));
+  Check(IsMatch('a*','a',true));
+  Check(IsMatch('*','anything',true));
   Check(IsMatch('*.pas','Bidule.pas',true));
   Check(IsMatch('*.pas','Bidule.pas',false));
   Check(IsMatch('*.PAS','Bidule.pas',true));
   Check(not IsMatch('*.PAS','Bidule.pas',false));
+  Check(IsMatch('*.p?s','Bidule.pas',true));
+  Check(IsMatch('*.p*S','Bidule.pas',true));
+  Check(IsMatch('B*.PAS','bidule.pas',true));
+  Check(IsMatch('*.p?s','bidule.pas',false));
+  Check(IsMatch('*.p*s','bidule.pas',false));
+  Check(IsMatch('b*.pas','bidule.pas',false));
+  Check(not IsMatch('B*.das','Bidule.pas',true));
   Check(IsMatch('bidule.*','Bidule.pas',true));
   Check(IsMatch('ma?ch.*','match.exe',false));
   Check(IsMatch('ma?ch.*','mavch.dat',false));
   Check(IsMatch('ma?ch.*','march.on',false));
   Check(IsMatch('ma?ch.*','march.',false));
-  Check(IsMatch('this [e-n]s a [!zy]est','this is a test',false));
-  Check(IsMatch('this [e-n]s a [!zy]est','this is a rest',false));
-  Check(not IsMatch('this [e-n]s a [!zy]est','this is a zest',false));
-  Check(not IsMatch('this [e-n]s a [!zy]est','this as a test',false));
-  Check(not IsMatch('this [e-n]s a [!zy]est','this as a rest',false));
+  Check(IsMatch('ab*.exyz', 'ab.exyz',true));
+  Check(IsMatch('ab[ef]xyz', 'abexyz',false));
+  Check(IsMatch('ab[ef]xyz', 'abexyz',true));
+  Check(IsMatch('ab*.[ef]xyz', 'abcd.exyz',true));
+  Check(IsMatch('ab*.[ef]xyz', 'ab.exyz',true));
+  Check(IsMatch('ab*.[ef]xyz', 'abcd.exyz',true));
+  Check(IsMatch('ab*.[ef]xyz', 'ab.fxyz',true));
+  Check(IsMatch('ab*.[ef]xyz', 'abcd.fxyz',true));
+  check(not IsMatch('ab[cd]e','abdde',false));
+  check(not IsMatch('ab[cd]ex','abddex',false));
+  check(not IsMatch('ab*.[cd]e','ab.dde',false));
+  check(not IsMatch('ab*.[cd]ex','ab.ddex',false));
+  V := 'this [e-n]s a [!zy]est';
+  check(not IsMatch(V,V,false));
+  Check(IsMatch(V,'this is a test',false));
+  Check(IsMatch(V,'this is a rest',false));
+  Check(not IsMatch(V,'this is a zest',false));
+  Check(not IsMatch(V,'this as a test',false));
+  Check(not IsMatch(V,'this as a rest',false));
+  match.Prepare(V, false, true);
+  Check(not match.Match(V));
+  Check(match.Match('this is a test'));
+  Check(match.Match('this is a rest'));
+  Check(not match.Match('this is a zest'));
+  match.Prepare('test', false, true);
+  check(match.Match('test'));
+  check(not match.Match('tes'));
+  check(not match.Match('teste'));
+  check(not match.Match('tesT'));
+  match.Prepare('teST', true, true);
+  check(match.Match('test'));
+  check(match.Match('test'));
+  match.Prepare('test*', false, true);
+  check(match.Match('test'));
+  check(match.Match('teste'));
+  check(match.Match('tester'));
+  check(not match.Match('tes'));
   for i := 32 to 127 do begin
     SetLength(V,1);
     V[1] := AnsiChar(i);
@@ -2823,6 +2960,8 @@ begin
     V[3] := AnsiChar(i);
     Check(IsMatch('[A-Za-z0-9]?[A-Za-z0-9]',V)=(i in IsWord));
     Check(IsMatch('[A-Za-z0-9]*',V)=(i in IsWord));
+    Check(IsMatch('[a-z0-9]?[A-Z0-9]',V,true)=(i in IsWord));
+    Check(IsMatch('[A-Z0-9]*',V,true)=(i in IsWord));
   end;
 end;
 
@@ -2849,7 +2988,7 @@ var int: TRawUTF8Interning;
     vs: TRawUTF8DynArray;
     timer: TPrecisionTimer;
 const MAX=500000;
-      DIRSIZE = 16*(MAX+1); // assume each SmallUInt32UTF8[] uses 16 heap bytes 
+      DIRSIZE = 16*(MAX+1); // assume each SmallUInt32UTF8[] uses 16 heap bytes
       INTSIZE = 512*16;
 begin
   {$ifndef HASINLINE} // inlining induces optimizations which trigger Clean
@@ -3051,6 +3190,7 @@ begin
   Check(hash(0,@a,2)=$BD5FE6AF);
   Check(hash(0,@a,3)=$7F40BC73);
   Check(hash(0,@a,4)=$13790E51);
+  Check(crc32cBy4(cardinal(not 0),PCardinal(@a)^)=cardinal(not $13790E51),'crc32cBy4');
   Check(hash(0,@a,5)=$659AD21);
   Check(hash(0,@a,6)=$85BF5A8C);
   Check(hash(0,@a,7)=$8B0FB6FA);
@@ -3156,12 +3296,148 @@ begin
     KB(Timer.PerSec(totallen))]);
 end;
 
+procedure TTestLowLevelCommon.intadd(const Sender; Value: integer);
+begin
+  AddToCSV(UInt32ToUtf8(Value),fAdd);
+end;
+
+procedure TTestLowLevelCommon.intdel(const Sender; Value: integer);
+begin
+  AddToCSV(UInt32ToUtf8(Value),fDel);
+end;
+
+procedure TTestLowLevelCommon.Integers;
+  procedure changes(const old,new,added,deleted: RawUTF8);
+  var o,n: TIntegerDynArray;
+  begin
+    CSVToIntegerDynArray(Pointer(old),o);
+    CSVToIntegerDynArray(Pointer(new),n);
+    fAdd := '';
+    fDel := '';
+    NotifySortedIntegerChanges(pointer(o),pointer(n),length(o),length(n),intadd,intdel,self);
+    Check(fAdd = added, 'added');
+    Check(fDel = deleted, 'deleted');
+  end;
+var i32: TIntegerDynArray;
+    i64: TInt64DynArray;
+    i,n: integer;
+begin
+  check(i32=nil);
+  DeduplicateInteger(i32);
+  check(i32=nil);
+  SetLength(i32,2);
+  i32[0] := 1;
+  QuickSortInteger(i32);
+  check(i32[0]=0);
+  check(i32[1]=1);
+  DeduplicateInteger(i32);
+  check(length(i32)=2);
+  check(i32[0]=0);
+  check(i32[1]=1);
+  i32[0] := 1;
+  DeduplicateInteger(i32);
+  check(length(i32)=1);
+  check(i32[0]=1);
+  SetLength(i32,6);
+  i32[4] := 1;
+  i32[5] := 2;
+  DeduplicateInteger(i32); // (1, 0, 0, 0, 1, 2)
+  check(length(i32)=3);
+  check(i32[0]=0);
+  check(i32[1]=1);
+  check(i32[2]=2);
+  SetLength(i32,6);
+  i32[4] := 3;
+  i32[5] := 3;
+  DeduplicateInteger(i32); // (0, 1, 2, 0, 3, 3)
+  check(length(i32)=4);
+  check(i32[0]=0);
+  check(i32[1]=1);
+  check(i32[2]=2);
+  check(i32[3]=3);
+  for n := 1 to 1000 do begin
+    SetLength(i32,n);
+    for i := 0 to n - 1 do
+      i32[i] := i and 15;
+    DeduplicateInteger(i32);
+    if n < 16 then
+      check(Length(i32) = n) else
+      check(Length(i32) = 16);
+    for i := 0 to high(i32) do
+      check(i32[i] = i);
+  end;
+  changes('','','','');
+  changes('1','1','','');
+  changes('','1','1','');
+  changes('1','','','1');
+  changes('1,2','1,3','3','2');
+  changes('2','1,3','1,3','2');
+  changes('','1,3','1,3','');
+  changes('1,2,3,4','1,2,3,4','','');
+  changes('1,2,3,4','1,2,3,4,5','5','');
+  changes('1,2,3,4','1,3,4','','2');
+  changes('1,2,3,4','3,4','','1,2');
+  changes('1,2,3,4','1,4','','2,3');
+  changes('1,2,3,4','','','1,2,3,4');
+  changes('1,2,3,4','5,6','5,6','1,2,3,4');
+  changes('1,2,4','1,3,5,6','3,5,6','2,4');
+  changes('1,2,4','3,5,6','3,5,6','1,2,4');
+  check(i64=nil);
+  DeduplicateInt64(i64);
+  check(i64=nil);
+  SetLength(i64,2);
+  i64[0] := 1;
+  QuickSortInt64(pointer(i64),0,1);
+  check(i64[0]=0);
+  check(i64[1]=1);
+  DeduplicateInt64(i64);
+  check(length(i64)=2);
+  check(i64[0]=0);
+  check(i64[1]=1);
+  i64[0] := 1;
+  DeduplicateInt64(i64);
+  check(length(i64)=1);
+  check(i64[0]=1);
+  SetLength(i64,6);
+  i64[4] := 1;
+  i64[5] := 2;
+  DeduplicateInt64(i64); // (1, 0, 0, 0, 1, 2)
+  check(length(i64)=3);
+  check(i64[0]=0);
+  check(i64[1]=1);
+  check(i64[2]=2);
+  SetLength(i64,6);
+  i64[4] := 3;
+  i64[5] := 3;
+  DeduplicateInt64(i64); // (0, 1, 2, 0, 3, 3)
+  check(length(i64)=4);
+  check(i64[0]=0);
+  check(i64[1]=1);
+  check(i64[2]=2);
+  check(i64[3]=3);
+  for n := 1 to 1000 do begin
+    SetLength(i64,n);
+    for i := 0 to n - 1 do
+      i64[i] := i and 15;
+    DeduplicateInt64(i64);
+    if n < 16 then
+      check(Length(i64) = n) else
+      check(Length(i64) = 16);
+    for i := 0 to high(i64) do
+      check(i64[i] = i);
+  end;
+end;
+
 procedure TTestLowLevelCommon.NumericalConversions;
 var i, j, b, err: integer;
     juint: cardinal absolute j;
     k,l: Int64;
     s,s2: RawUTF8;
     d,e: double;
+    {$ifndef DELPHI5OROLDER}
+    c: currency;
+    ident: TRawUTF8DynArray;
+    {$endif}
     a: shortstring;
     u: string;
     varint: array[0..31] of byte;
@@ -3192,15 +3468,35 @@ begin
   Check(IntToThousandString(-10000)='-10,000');
   Check(IntToThousandString(-100000)='-100,000');
   Check(IntToThousandString(-1000000)='-1,000,000');
-  check(UInt3DigitsToUTF8(1)='001');
-  check(UInt3DigitsToUTF8(12)='012');
-  check(UInt3DigitsToUTF8(123)='123');
-  check(UInt4DigitsToUTF8(1)='0001');
-  check(UInt4DigitsToUTF8(12)='0012');
-  check(UInt4DigitsToUTF8(123)='0123');
-  check(UInt4DigitsToUTF8(1234)='1234');
-  Check(KB(1024)='1024 B');
+  Check(UInt3DigitsToUTF8(1)='001');
+  Check(UInt3DigitsToUTF8(12)='012');
+  Check(UInt3DigitsToUTF8(123)='123');
+  Check(UInt4DigitsToUTF8(1)='0001');
+  Check(UInt4DigitsToUTF8(12)='0012');
+  Check(UInt4DigitsToUTF8(123)='0123');
+  Check(UInt4DigitsToUTF8(1234)='1234');
+  Check(MicroSecToString(0)='0us');
+  Check(MicroSecToString(QWord(-10))='0us');
+  Check(MicroSecToString(10)='10us');
+  Check(MicroSecToString(999)='999us');
+  Check(MicroSecToString(1000)='1ms');
+  Check(MicroSecToString(1001)='1ms');
+  Check(MicroSecToString(1010)='1.01ms');
+  Check(MicroSecToString(1100)='1.10ms');
+  Check(MicroSecToString(999999)='999.99ms');
+  Check(MicroSecToString(1000000)='1s');
+  Check(MicroSecToString(1000001)='1s');
+  Check(MicroSecToString(2030001)='2.03s');
+  Check(MicroSecToString(200000070001)='55h33');
+  Check(KB(-123)='-123 B');
+  Check(KB(0)='0 B');
+  Check(KB(123)='123 B');
+  Check(KB(1023)='1023 B');
+  Check(KB(1024)='1 KB');
+  Check(KB(1025)='1 KB');
+  Check(KB(16383)='16 KB');
   Check(KB(16384)='16 KB');
+  Check(KB(16385)='16 KB');
   Check(KB(3*1024*1024-800*1024)='2.2 MB');
   Check(KB(3*1024*1024)='3 MB');
   Check(KB(3*1024*1024+512*1024)='3.5 MB');
@@ -3239,7 +3535,10 @@ begin
   Check(err>0);
   d := GetExtended('40640.5028819444',err);
   Check(err=0);
-  CheckSame(d,40640.5028819444);
+  u := DoubleToString(d);
+  Check(u='40640.5028819444',u);
+  e := 40640.5028819444;
+  CheckSame(d,e,1e-11);
   {$endif}
   d := 22.99999999999997;
   a[0] := AnsiChar(ExtendedToString(a,d,DOUBLE_PRECISION));
@@ -3262,38 +3561,80 @@ begin
   d := 999.9999999999933;
   a[0] := AnsiChar(ExtendedToString(a,d,DOUBLE_PRECISION));
   Check(a='999.999999999993');
-{$ifdef EXTENDEDTOSTRING_USESTR}
+  {$ifdef EXTENDEDTOSTRING_USESTR}
   Check(DoubleToString(-3.3495117168e-10)='-0.00000000033495');
   Check(DoubleToString(-3.3495617168e-10)='-0.00000000033496');
   Check(DoubleToString(-3.9999617168e-14)='-0.00000000000004');
   Check(DoubleToString(3.9999617168e-14)='0.00000000000004');
   Check(DoubleToString(-3.9999617168e-15)='0');
   Check(DoubleToString(3.9999617168e-15)='0');
-{$else}
+  {$else}
   Check(DoubleToString(-3.3495117168e-10)='-3.3495117168E-10');
   Check(DoubleToString(-3.3495617168e-10)='-3.3495617168E-10');
   Check(DoubleToString(-3.9999617168e-14)='-3.9999617168E-14');
   Check(DoubleToString(3.9999617168e-14)='3.9999617168E-14');
   Check(DoubleToString(-3.9999617168e-15)='-3.9999617168E-15');
   Check(DoubleToString(3.9999617168e-15)='3.9999617168E-15');
-{$endif}
+  {$endif}
   Check(Int32ToUtf8(1599638299)='1599638299');
   Check(UInt32ToUtf8(1599638299)='1599638299');
   Check(Int32ToUtf8(-1599638299)='-1599638299');
   Check(Int64ToUTF8(-1271083787498396012)='-1271083787498396012');
   s := Int64ToUTF8(242161819595454762);
   Check(s='242161819595454762');
-{$ifndef LVCL}
+  {$ifndef DELPHI5OROLDER}
+  Check(ScanUTF8('1 2 3','  %',[@i,@j,@d])=0);
+  Check(ScanUTF8('','%d%d%f',[@i,@j,@d])=0);
+  Check(ScanUTF8('1 2 7','%d%d%f',[@i,@j,@d])=3);
+  Check(i=1);
+  Check(j=2);
+  Check(d=7);
+  Check(ScanUTF8('2/3/8.1','%d/%d/%f',[@i,@j,@d])=3);
+  Check(i=2);
+  Check(j=3);
+  CheckSame(d,8.1);
+  Check(ScanUTF8('5 / 6/3','%d/%d / %f',[@i,@j,@d])=3);
+  Check(i=5);
+  Check(j=6);
+  Check(d=3);
+  Check(ScanUTF8('15 25 35','%d%D',[@i,@k,@d])=2);
+  Check(i=15);
+  Check(k=25);
+  Check(d=3);
+  Check(ScanUTF8('1 21 35','%d%d%f',[@i,@j])=2);
+  Check(i=1);
+  Check(j=21);
+  Check(d=3);
+  Check(ScanUTF8(' 10  20  abc  ','%d%d%s',[@i,@j,@a])=3);
+  Check(i=10);
+  Check(j=20);
+  Check(a='abc');
+  Check(ScanUTF8('1 00000002 3.01234 ','%dtoto %x%Ftiti',[@i,@j,@c])=3);
+  Check(i=1);
+  Check(j=2);
+  Check(c=3.0123);
+  Check(ScanUTF8('10 0000000a 77.77 7','%dtoto %x%Ftiti%Uboat',[@i,@j,@c,@crc],@ident)=4);
+  Check(i=10);
+  Check(j=10);
+  Check(c=77.77);
+  Check(crc=7);
+  Check(Length(ident)=4);
+  Check(ident[0]='dtoto');
+  Check(ident[1]='x');
+  Check(ident[2]='Ftiti');
+  Check(ident[3]='Uboat');
+  {$endif}
+  {$ifndef LVCL}
   {$ifdef ISDELPHIXE}FormatSettings.{$endif}{$ifdef FPC}FormatSettings.{$endif}
-  DecimalSeparator := '.';
-{$endif}
-  check(xxHash32(0,'A',1)=275094093);
-  check(xxHash32(0,'ABACK',5)=314231639);
-  check(xxHash32(0,'ABBREVIATIONS',13)=3058487595);
-  check(xxHash32(0,'LORD',4)=3395586315);
-  check(xxHash32(0,'MICROINSTRUCTION''S',18)=1576115228);
+    DecimalSeparator := '.';
+  {$endif}
+  Check(xxHash32(0,'A',1)=275094093);
+  Check(xxHash32(0,'ABACK',5)=314231639);
+  Check(xxHash32(0,'ABBREVIATIONS',13)=3058487595);
+  Check(xxHash32(0,'LORD',4)=3395586315);
+  Check(xxHash32(0,'MICROINSTRUCTION''S',18)=1576115228);
   for i := -10000 to 10000 do
-    check(GetInteger(Pointer(Int32ToUtf8(i)))=i);
+    Check(GetInteger(Pointer(Int32ToUtf8(i)))=i);
   for i := 0 to 10000 do begin
     j := i shr 6; // circumvent weird FPC code generation bug in -O2 mode
     s := RandomString(j);
@@ -3548,7 +3889,18 @@ var i, len, CP, L: integer;
     {$endif}
     Unic: RawUnicode;
     WA: Boolean;
+const ROWIDS: array[0..17] of PUTF8Char = (
+  'id','ID','iD','rowid','ROWid','ROWID','rowiD','ROWId', // ok
+  'id2','id ','idd','i','rowi','row','ROWI','ROW','ROWIDD','ROWID ');
+  IDPU: array[0..15] of PUTF8Char = (
+    'anything','t','1','te','tE','TE','tes','test','TeSt','teS','tesT','testE',
+    'T','T','1','teste');
+  IDPA: array[0..15] of PAnsiChar = (
+    nil,'T','1','TE','TE','TE','TES','TEST','TEST','TES','TEST','TESTE',
+    't','U','2','TESTe');
 begin
+  for i := 0 to high(ROWIDS) do
+    Check(isRowID(ROWIDS[i])=(i<8));
   U := 'old1,old2,old3';
   Check(not RenameInCSV('old','new',U));
   Check(RenameInCSV('old1','n1',U));
@@ -3563,21 +3915,8 @@ begin
   Check(RenameInCSV('1','ah',U,'-'));
   Check(RenameInCSV('3','see',U,'-'));
   Check(U='ah-bee-see');
-  Check(IdemPChar('anything',''));
-  Check(IdemPChar('t','T'));
-  Check(IdemPChar('T','T'));
-  Check(not IdemPChar('T','t'));
-  Check(not IdemPChar('T','U'));
-  Check(IdemPChar('1','1'));
-  Check(not IdemPChar('1','2'));
-  Check(IdemPChar('te','TE'));
-  Check(IdemPChar('tes','TES'));
-  Check(IdemPChar('test','TEST'));
-  Check(IdemPChar('tE','TE'));
-  Check(IdemPChar('teS','TES'));
-  Check(IdemPChar('tesT','TEST'));
-  Check(IdemPChar('testE','TESTE'));
-  Check(not IdemPChar('testE','TESTe'));
+  for i := 0 to High(IDPU) do
+    Check(IdemPChar(IDPU[i],IDPA[i])=(i<12));
   res := 'one,two,three';
   Check(EndWith('three','THREE'));
   Check(EndWith(res,'E'));
@@ -4645,11 +4984,11 @@ begin
   len := SyslogMessage(sfAuth,ssCrit,'test','','',tmp,sizeof(tmp),false);
   // Check(len=65); // <-- different for every PC, due to PC name differences
   tmp[len] := #0;
-  Check(IdemPChar(tmp,'<34>1 '));
+  Check(IdemPChar(PUTF8Char(@tmp),PAnsiChar('<34>1 ')));
   Check(PosEx(' - - - test',tmp)=len-10);
   msg := RawUTF8(StringOfChar('+',300));
   len := SyslogMessage(sfLocal4,ssNotice,msg,'proc','msg',tmp,300,false);
-  Check(IdemPChar(tmp,'<165>1 '));
+  Check(IdemPChar(PUTF8Char(@tmp),PAnsiChar('<165>1 ')));
   Check(PosEx(' proc msg - ++++',tmp)>1);
   Check(len<300,'truncated to avoid buffer overflow');
   Check(tmp[len-1]='+');
@@ -4844,7 +5183,6 @@ begin
     gen.Free;
   end;
 end;
-
 procedure TTestLowLevelCommon._TSynDictionary;
 type tvalue = {$ifdef NOVARIANTS}integer{$else}variant{$endif};
      tvalues = {$ifdef NOVARIANTS}TIntegerDynArray{$else}TVariantDynArray{$endif};
@@ -4910,6 +5248,155 @@ begin
   finally
     dict.Free;
   end;
+end;
+
+procedure TTestLowLevelCommon._TSynQueue;
+var o,i,j,k,n: integer;
+    f: TSynQueue;
+    u,v: RawUTF8;
+    savedint: TIntegerDynArray;
+    savedu: TRawUTF8DynArray;
+begin
+  f := TSynQueue.Create(TypeInfo(TIntegerDynArray));
+  try
+    for o := 1 to 1000 do begin
+      check(f.Count=0);
+      check(not f.Pending);
+      for i := 1 to o do
+        f.Push(i);
+      check(f.Pending);
+      check(f.Count=o);
+      check(f.Capacity>=o);
+      f.Save(savedint);
+      check(Length(savedint)=o);
+      for i := 1 to o do begin
+        j := -1;
+        check(f.Peek(j));
+        check(j=i);
+        j := -1;
+        check(f.Pop(j));
+        check(j=i);
+      end;
+      check(not f.Pending);
+      check(f.Count=0);
+      check(f.Capacity>0);
+      f.Clear; // ensure f.Pop(j) will use leading storage
+      check(not f.Pending);
+      check(f.Count=0);
+      check(f.Capacity=0);
+      check(Length(savedint)=o);
+      for i := 1 to o do
+        check(savedint[i-1]=i);
+      n := 0;
+      for i := 1 to o do
+        if i and 7=0 then begin
+          j := -1;
+          check(f.Pop(j));
+          check(j and 7<>0);
+          dec(n);
+        end else begin
+          f.Push(i);
+          inc(n);
+        end;
+      check(f.Count=n);
+      check(f.Pending);
+      f.Save(savedint);
+      check(Length(savedint)=n);
+      for i := 1 to n do
+        check(savedint[i-1] and 7<>0);
+      for i := 1 to n do begin
+        j := -1;
+        check(f.Peek(j));
+        k := -1;
+        check(f.Pop(k));
+        check(j=k);
+        check(j and 7<>0);
+      end;
+      check(f.Count=0);
+      check(f.Capacity>0);
+    end;
+  finally
+    f.Free;
+  end;
+  f := TSynQueue.Create(TypeInfo(TRawUTF8DynArray));
+  try
+    for o := 1 to 1000 do begin
+      check(not f.Pending);
+      check(f.Count=0);
+      f.Clear; // ensure f.Pop(j) will use leading storage
+      check(f.Count=0);
+      check(f.Capacity=0);
+      n := 0;
+      for i := 1 to o do
+        if i and 7=0 then begin
+          u := '7';
+          check(f.Pop(u));
+          check(GetInteger(pointer(u)) and 7<>0);
+          dec(n);
+        end else begin
+          u := UInt32ToUtf8(i);
+          f.Push(u);
+          inc(n);
+        end;
+      check(f.Pending);
+      check(f.Count=n);
+      f.Save(savedu);
+      check(Length(savedu)=n);
+      for i := 1 to n do
+        check(GetInteger(pointer(savedu[i-1])) and 7<>0);
+      for i := 1 to n do begin
+        u := '';
+        check(f.Peek(u));
+        v := '';
+        check(f.Pop(v));
+        check(u=v);
+        check(GetInteger(pointer(u)) and 7<>0);
+      end;
+      check(not f.Pending);
+      check(f.Count=0);
+      check(f.Capacity>0);
+    end;
+    check(Length(savedu)=length(savedint));
+  finally
+    f.Free;
+  end;
+end;
+
+procedure TTestLowLevelCommon._DeltaCompress;
+var o,n,d,s: RawByteString;
+    i: integer;
+begin
+  n := RandomTextParagraph(100);
+  d := DeltaCompress(n,o);
+  check(DeltaExtract(d,o,s)=dsSuccess,'delta0');
+  Check(s=n);
+  d := DeltaCompress(n,s);
+  check(d='=');
+  for i := 1 to 20 do begin
+    o := n;
+    s := RandomTextParagraph(100);
+    case i and 7 of
+      2: n := n+s;
+      7: n := s+n;
+      else insert(s,n,i*50);
+    end;
+    d := DeltaCompress(n,o);
+    check(d<>'=');
+    check(length(d)<length(s));
+    check(DeltaExtract(d,o,s)=dsSuccess,'delta+');
+    Check(s=n);
+  end;
+  o := n;
+  delete(n,100,100);
+  d := DeltaCompress(n,o);
+  check(DeltaExtract(d,o,s)=dsSuccess,'delta-');
+  Check(s=n);
+  o := n;
+  delete(n,1000,100);
+  insert(RandomIdentifier(50),n,200);
+  d := DeltaCompress(n,o);
+  check(DeltaExtract(d,o,s)=dsSuccess,'delta-+');
+  Check(s=n);
 end;
 
 procedure TTestLowLevelCommon.BloomFilters;
@@ -5219,7 +5706,7 @@ procedure TSQLRecordTest.CheckWith(test: TSynTestCase; i: Integer; offset: integ
   checkblob: boolean);
 begin
   test.Check(i<>0);
-  test.Check(ID=i);
+  test.CheckUtf8(ID=i,'id=%=%',[ID,i]);
   test.Check(Int=i);
   test.Check(self.Test=Int32ToUtf8(i));
   test.Check(Ansi=WinAnsiString(self.Test));
@@ -5230,8 +5717,8 @@ begin
   if checkblob then
     test.Check(Data=self.Test);
 {$ifndef NOVARIANTS}
-  test.Check(DocVariantType.IsOfType(ValVariant));
-  test.Check(VariantSaveJson(ValVariant)='{"id":'+self.Test+'}');
+  test.Check(DocVariantType.IsOfType(ValVariant),'var1');
+  test.Check(VariantSaveJson(ValVariant)='{"id":'+self.Test+'}','var2');
 {$endif}
 end;
 
@@ -5265,15 +5752,15 @@ var v: Variant;
     nt: TNullableUTF8Text;
 begin
   t := nil; // makes the compiler happy
-  ValueVarToVariant(nil,sftBoolean,vd,false,t);
+  ValueVarToVariant(nil,0,sftBoolean,vd,false,t);
   Check(not boolean(v));
-  ValueVarToVariant('0',sftBoolean,vd,false,t);
+  ValueVarToVariant('0',1,sftBoolean,vd,false,t);
   Check(not boolean(v));
-  ValueVarToVariant('false',sftBoolean,vd,false,t);
+  ValueVarToVariant('false',5,sftBoolean,vd,false,t);
   Check(not boolean(v));
-  ValueVarToVariant('1',sftBoolean,vd,false,t);
+  ValueVarToVariant('1',1,sftBoolean,vd,false,t);
   Check(boolean(v));
-  ValueVarToVariant('true',sftBoolean,vd,false,t);
+  ValueVarToVariant('true',4,sftBoolean,vd,false,t);
   Check(boolean(v));
   GetVariantFromJSON('0',False,v,nil);
   Check(vd.VType=varInteger);
@@ -5294,7 +5781,7 @@ begin
   Check(v=1234567890123456789);
   GetVariantFromJSON('12345678901234567890',False,v,nil,true);
   Check(vd.VType=varDouble);
-  CheckSame(v,12345678901234567890.0);
+  CheckSame(vd.VDouble,12345678901234567890.0,0);
   GetVariantFromJSON('12345678901234567890',False,v,nil,false);
   Check(vd.VType=varString);
   GetVariantFromJSON('-123.1',False,v,nil);
@@ -6641,6 +7128,18 @@ begin
     J := ObjectToJSON(peop);
     Check(J='{"ID":-1234,"FirstName":"","LastName":"",'+
       '"Data":"","YearOfBirth":0,"YearOfDeath":0}');
+   {$ifndef NOVARIANTS}
+   peop.YearOfDeath := 10;
+   peop.LastName := 'john';
+   TObjectVariant.New(Va,peop);
+   Check(Va.id=-1234);
+   Check(Va.FirstName='');
+   Check(Va.LastName='john');
+   Check(Va.YearOfDeath=10);
+   J := VariantSaveJSON(Va);
+   check(J='{"ID":-1234,"FirstName":"","LastName":"john","Data":"",'+
+     '"YearOfBirth":0,"YearOfDeath":10}');
+   {$endif}
   finally
     peop.Free;
   end;
@@ -7464,30 +7963,33 @@ begin
   end;
 end;
 begin
-  {$ifdef FPC}
-  exit; // bypass the tests by now, until FPC variant supports is fixed
-  {$endif}
   // see http://docs.mongodb.org/manual/reference/object-id
   oid.FromText('507f191e810c19729de860ea');
   Check(oid.UnixCreateTime=bswap32($507f191e));
   u := oid.ToText;
   Check(u=BSONID);
   o := ObjectID('507f191e810c19729de860ea');
+  Check(TVarData(o).VType=BSONVariantType.VarType);
   u := string(o);
   Check(u=BSONID);
   d2 := Iso8601ToDateTime('2012-10-17T20:46:22');
   od := d2;
   Check(TVarData(od).VType=varDate);
+  {$ifdef FPC} // doesn't allow direct cast from varDate to double :(
+  CheckSame(TVarData(od).VDate,d2);
+  d := double(o);
+  {$else}
   CheckSame(od,d2);
   d := o;
+  {$endif}
   DateTimeToIso8601StringVar(d,'T',st);
   CheckSame(d,d2,1E-4,st);
   CheckSame(o,d2,1E-4,st);
   CheckSame(TBSONVariantData(o).VObjectID.CreateDateTime,d2,1E-4);
   o2 := o;
-  Check(o=o2);
+  Check(double(o)=double(o2));
   o := ObjectID;
-  Check(Abs(NowUTC-TDateTime(o))<0.1);
+  Check(Abs(NowUTC-double(o))<0.1);
   oid.FromText(string(o));
   Check(Abs(NowUTC-oid.CreateDateTime)<0.1);
   oid2.ComputeNew;
@@ -7496,7 +7998,11 @@ begin
   Check(oid.MachineID.b3=oid2.MachineID.b3);
   Check(oid.ProcessID=oid2.ProcessID);
   o2 := ObjectID;
+  {$ifdef FPC} // FPC bug: sysvartotdatetime doesn't handle custom variants :(
+  Check(double(o2)>=double(o),o);
+  {$else}
   Check(TDateTime(o2)>=TDateTime(o),o);
+  {$endif}
   oid2.ComputeNew;
   j := 100000;
   timer.Start;
@@ -7577,7 +8083,9 @@ begin
   o2 := BSONVariant('{%:[?,?,?]}',['BSON'],['awesome',5.05,1986]);
   Check(VariantSaveMongoJSON(o2,modMongoStrict)=BSONAWESOME);
   b := pointer(bsonDat);
+  {$ifndef FPC}
   Check(o2=BSONAWESOME,'BSONVariant casted to string');
+  {$endif}
   u := string(o2);
   Check(u='{BSON:["awesome",5.05,1986]}','TBSONVariant: mongoShell syntax');
   BSONParseLength(b);
@@ -7594,7 +8102,7 @@ begin
   Check(o.bson._Kind=ord(dvArray));
   Check(o.bson._count=3);
   Check(o.bson._(0)='awesome');
-  CheckSame(o.bson._(1),5.05);
+  CheckSame(double(o.bson._(1)),5.05);
   Check(o.bson._(2)=1986);
   Check(o.dummy=null);
   Check(o.Exists('bson'));
@@ -7712,7 +8220,7 @@ begin
   Check(u='{type:{$in:["food","snack"]}}');
   o := _JSON('{"hello": null}');
   Check(TVarData(o).VType=DocVariantVType);
-  check(o='{"hello":null}');
+  check(string(o)='{"hello":null}');
   o := _JSON('{"hello": world}');
   Check(TVarData(o).VType=varEmpty,'invalid JSON content');
   CheckRegEx(_Json('{name:"John",field:{ "$regex": "acme.*corp", $options: "i" }}'));
@@ -7723,7 +8231,7 @@ begin
   u := BSONToJSON(b,betDoc,0,modMongoStrict);
   Check(u='{"name":"John","field":'+REGEX+'}');
   o2 := BSONVariant(REGEX2);
-  Check(o2='{name:"John",field:/acme.*corp/i}','MongoShell in string cast');
+  Check(string(o2)='{name:"John",field:/acme.*corp/i}','MongoShell in string cast');
   Check(VariantSaveJson(o2)=u);
   b := pointer(BSON('{name:?,field:/%/i}',['acme.*corp'],['John']));;
   u2 := BSONToJSON(b,betDoc,0,modMongoStrict);
@@ -7788,11 +8296,19 @@ begin
   u := VariantSaveMongoJSON(o,modMongoStrict);
   check(u='{"num":{"$numberDecimal":"123.5600"}}');
   o2 := _JsonFast(u);
+  {$ifdef FPC} // TCustomVariantType.CompareOp not yet supported :(
+  check(string(o)=string(o2),'o=o2');
+  {$else}
   check(o=o2,'o=o2');
+  {$endif}
   u := VariantSaveMongoJSON(o,modMongoShell);
   check(u='{num:NumberDecimal("123.5600")}');
   o2 := _JsonFast(u);
+  {$ifdef FPC} // TCustomVariantType.CompareOp not yet supported :(
+  check(string(o)=string(o2),'o=o2');
+  {$else}
   check(o=o2,'o=o2');
+  {$endif}
   b := pointer(BSON(u,[],[]));
   u2 := BSONToJSON(b,betDoc,0,modMongoShell);
   Check(u=u2);
@@ -7832,9 +8348,7 @@ begin
   Check(variant(Doc)._JSON=JSON);
   Check(variant(Doc)._JSON__=JSON,'pseudo methods use IdemPChar');
   Check(VariantSaveMongoJSON(variant(Doc),modMongoStrict)=JSON);
-  {$ifndef FPC}
-  Check(variant(Doc)=JSON);
-  {$endif}
+  Check(VariantToUTF8(variant(Doc))=JSON);
   Check(Doc.U['name']='John');
   Check(Doc.I['birthyear']=ExpectedYear);
 end;
@@ -7916,13 +8430,21 @@ begin
   end;
 end;
 const MAX=20000;
+  TEST_DATA_1 = '['+
+  '{"REC_ID":1,"CHANNEL":117,"PHONE":"5004392222,12345678","RELATION_ID":10,' +
+  '"TIMESTAMP_CALL":"2017-10-26T04:48:14"},{"REC_ID":2,"CHANNEL":null,"PHONE":' +
+  '"1234","RELATION_ID":11,"TIMESTAMP_CALL":"2017-10-26T04:48:14"},' +
+  '{"REC_ID":3,"CHANNEL":174,"PHONE":"9149556917","RELATION_ID":12,' +
+  '"TIMESTAMP_CALL":"2017-10-26T04:48:14"}]';
 var Doc,Doc2: TDocVariantData;
     vr: TTVarRecDynArray;
-    i: integer;
+    i,ndx: integer;
     V,V1,V2: variant;
     s,j: RawUTF8;
     vd: double;
     vs: single;
+    lTable: TSQLTableJSON;
+    lRefreshed: Boolean;
 begin
   Doc.Init;
   Check(Doc.Kind=dvUndefined);
@@ -7997,9 +8519,7 @@ begin
     Check(V._(i)=Doc.Values[i]);
   Check(V._(3)=4);
   Check(V._(4)='a5');
-  {$ifndef FPC}
-  Check(V='["one",2,3,4,"a5"]');
-  {$endif}
+  Check(V{$ifdef FPC}._JSON{$endif}='["one",2,3,4,"a5"]');
   discogs := StringFromFile(discogsFileName);
   CheckNestedDoc([]);
   CheckNestedDoc([dvoValueCopiedByReference]);
@@ -8010,9 +8530,7 @@ begin
   V2.name := 'James';   // modifies V2.name, but also V1.name
   Check(V1.name='James');
   Check(V2.name='James');
-  {$ifndef FPC}
-  Check(V1='{"name":"James","year":1972}');
-  {$endif}
+  Check(V1{$ifdef FPC}._JSON{$endif}='{"name":"James","year":1972}');
   _Unique(V1);          // change options of V1 to be by-value
   V2 := V1;             // creates a full copy of the V1 instance
   V2.name := 'John';    // modifies V2.name, but not V1.name
@@ -8022,14 +8540,10 @@ begin
   Check(V1._Count=2);
   _UniqueFast(V1);      // change options of V1 to be by-reference
   V2 := V1;
-  {$ifndef FPC}
-  Check(V1._(1)='{"name":"John","year":1972}');
-  {$endif}
+  Check(V1._(1){$ifdef FPC}._JSON{$endif}='{"name":"John","year":1972}');
   V1._(1).name := 'Jim';
-  {$ifndef FPC}
-  Check(V1='["root",{"name":"Jim","year":1972}]');
-  Check(V2='["root",{"name":"Jim","year":1972}]');
-  {$endif}
+  Check(V1{$ifdef FPC}._JSON{$endif}='["root",{"name":"Jim","year":1972}]');
+  Check(V2{$ifdef FPC}._JSON{$endif}='["root",{"name":"Jim","year":1972}]');
   _UniqueFast(V2); // now V1 modifications should not affect V2
   Doc.Clear;
   Doc.Init;
@@ -8051,25 +8565,15 @@ begin
   Check(TDocVariantData(V1)._[1].U['name']='Jim');
   Check(TDocVariantData(V1)._[1].I['year']=1972);
   V1.Add(3.1415);
-  {$ifndef FPC}
-  Check(V1='["root",{"name":"Jim","year":1972},3.1415]');
-  {$endif}
+  Check(V1{$ifdef FPC}._JSON{$endif}='["root",{"name":"Jim","year":1972},3.1415]');
   V1._(1).Delete('year');
-  {$ifndef FPC}
-  Check(V1='["root",{"name":"Jim"},3.1415]');
-  {$endif}
+  Check(V1{$ifdef FPC}._JSON{$endif}='["root",{"name":"Jim"},3.1415]');
   V1.Delete(1); //<--- here we get an error with FPC on win64 if optimization = -O1 !??? All ok with -O2
-  {$ifndef FPC}
-  Check(V1='["root",3.1415]');
-  {$endif}
+  Check(V1{$ifdef FPC}._JSON{$endif}='["root",3.1415]');
   TDocVariantData(V2).DeleteByProp('name','JIM',true);
-  {$ifndef FPC}
-  Check(V2='["root",{"name":"Jim","year":1972}]');
-  {$endif}
+  Check(V2{$ifdef FPC}._JSON{$endif}='["root",{"name":"Jim","year":1972}]');
   TDocVariantData(V2).DeleteByProp('name','JIM',false);
-  {$ifndef FPC}
-  Check(V2='["root"]');
-  {$endif}
+  Check(V2{$ifdef FPC}._JSON{$endif}='["root"]');
   s := '{"Url":"argentina","Seasons":[{"Name":"2011/2012","Url":"2011-2012",'+
     '"Competitions":[{"Name":"Ligue1","Url":"ligue-1"},{"Name":"Ligue2","Url":"ligue-2"}]},'+
     '{"Name":"2010/2011","Url":"2010-2011","Competitions":[{"Name":"Ligue1","Url":"ligue-1"},'+
@@ -8102,9 +8606,7 @@ begin
     ',"Url":"ligue-2"}],"2010/2011","2010-2011",[{"Name":"Ligue1","Url":"ligue-1"}'+
     ',{"Name":"Ligue2","Url":"ligue-2"}]]}');
   V := _Json('{result:{data:{"1000":"D1", "1001":"D2"}}}');
-  {$ifndef FPC}
-  Check(V.result='{"data":{"1000":"D1", "1001":"D2"}}');
-  {$endif}
+  Check(V.result{$ifdef FPC}._JSON{$endif}='{"data":{"1000":"D1","1001":"D2"}}');
   Check(V.result.data.Exists('1000'));
   Check(V.result.data.Exists('1001'));
   Check(not V.result.data.Exists('1002'));
@@ -8193,6 +8695,23 @@ begin
   check(s='{"ID":2,"Notation":"ABC","Price":10.1}');
   s := VariantSaveJSON(V);
   check(s='{"ID":1,"Notation":"ABC","Price":10.1,"CustomNotation":"XYZ"}');
+  // some tests to avoid regression about bugs reported by users on forum
+  lTable := TSQLTableJSON.Create('');
+  try
+    lTable.UpdateFrom(TEST_DATA_1,lRefreshed,nil);
+    ndx := lTable.FieldIndex('RELATION_ID');
+    lTable.SortFields(ndx);
+    doc.Clear;
+    i := lTable.SearchFieldSorted('10',{RELATION_ID}ndx);
+    lTable.ToDocVariant(i,variant(doc));
+    doc.Delete('REC_ID');
+    doc.Clear;
+    i := lTable.SearchFieldSorted('11',{RELATION_ID}ndx);
+    lTable.ToDocVariant(i,variant(doc));
+    check(doc.Value['PHONE']='1234');
+  finally
+    lTable.Free;
+  end;
 end;
 
 {$endif LVCL}
@@ -9492,7 +10011,7 @@ procedure TTestCompression._TAlgoCompress;
   end;
 begin
   TestAlgo(AlgoSynLZ);
-  Check(AlgoSynLZ.AlgoName='SynLZ');
+  Check(AlgoSynLZ.AlgoName='synlz');
   {$ifdef MSWINDOWS}
   if (Lizard=nil) and FileExists(ExeVersion.ProgramFilePath+LIZARD_LIB_NAME) then
     Lizard := TSynLizardDynamic.Create;
@@ -9503,7 +10022,7 @@ begin
   {$ifndef DELPHI5OROLDER}
   TestAlgo(AlgoDeflate);
   TestAlgo(AlgoDeflateFast);
-  Check(AlgoDeflateFast.AlgoName ='DeflateFast');
+  Check(AlgoDeflateFast.AlgoName ='deflatefast');
   {$endif}
 end;
 
@@ -9543,19 +10062,19 @@ begin
   Value[16] := #$E7;
   Value[17] := #$E0;
   Check(not IsBase64(Value));
-  Check(Base64Encode(Value)=Value64);
+  Check(SockBase64Encode(Value)=Value64);
   Check(BinToBase64(Value)=Value64);
   Check(IsBase64(Value64));
   tmp := StringFromFile(ExeVersion.ProgramFileName);
-  b64 := Base64Encode(tmp);
+  b64 := SockBase64Encode(tmp);
   Check(IsBase64(b64));
-  Check(SynCrtSock.Base64Decode(b64)=tmp);
+  Check(SynCrtSock.SockBase64Decode(b64)=tmp);
   Check(BinToBase64(tmp)=b64);
   Check(Base64ToBin(b64)=tmp);
   tmp := '';
   for i := 1 to 1998 do begin
-    b64 := Base64Encode(tmp);
-    Check(SynCrtSock.Base64Decode(b64)=tmp);
+    b64 := SockBase64Encode(tmp);
+    Check(SynCrtSock.SockBase64Decode(b64)=tmp);
     Check((tmp='') or IsBase64(b64));
     Check(BinToBase64(tmp)=b64);
     Check(Base64ToBin(b64)=tmp);
@@ -9810,17 +10329,20 @@ begin
   // 1. Hash complete AnsiString
   SHA.Full(pointer(s),length(s),Digest);
   Check(CompareMem(@Digest,@TDig,sizeof(Digest)));
+  Check(IsEqual(Digest,TDig));
   // 2. one update call for all chars
   for i := 1 to length(s) do
     SHA.Update(@s[i],1);
   SHA.Final(Digest);
   Check(CompareMem(@Digest,@TDig,sizeof(Digest)));
+  Check(IsEqual(Digest,TDig));
   // 3. test consistency with Padlock engine down results
 {$ifdef USEPADLOCK}
   if not padlock_available then exit;
   padlock_available := false;  // force PadLock engine down
   SHA.Full(pointer(s),length(s),Digest);
   Check(CompareMem(@Digest,@TDig,sizeof(Digest)));
+  Check(IsEqual(Digest,TDig));
 {$ifdef PADLOCKDEBUG} write('=padlock '); {$endif}
   padlock_available := true; // restore previous value
 {$endif}
@@ -9904,7 +10426,7 @@ begin
   SingleTest('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq',D2);
   SHA256Weak('lagrangehommage',Digest.Lo); // test with len=256>64
   Check(IsEqual(Digest.Lo,D3));
-  Check(Comparemem(@Digest,@D3,sizeof(Digest.Lo)));
+  Check(CompareMem(@Digest,@D3,sizeof(Digest.Lo)));
   PBKDF2_HMAC_SHA256('password','salt',1,Digest.Lo);
   check(SHA256DigestToString(Digest.Lo)=
     '120fb6cffcf8b32c43e7225256c4f837a86548c92ccc35480805987cb70be17b');
@@ -10333,6 +10855,11 @@ begin
       'FtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeF'+
       'ONFh7hgQ',jwt); // altered one char in signature
     check(jwt.result=jwtInvalidSignature);
+    tok := j.Compute(['uid','{1CCA336D-A78F-4EB6-B701-1DB8E749BD1F}'],'','subject');
+    j.Verify(tok,jwt);
+    Check(jwt.result=jwtValid);
+    check(jwt.reg[jrcSubject]='subject');
+    check(jwt.data.U['uid']='{1CCA336D-A78F-4EB6-B701-1DB8E749BD1F}');
   finally
     j.Free;
   end;
@@ -10367,7 +10894,7 @@ end;
 type
   TBenchmark = (
     // non cryptographic hashes
-    bCRC32c, bXXHash32, 
+    bCRC32c, bXXHash32,
     // cryptographic hashes
     bMD5, bSHA1, bHMACSHA1, bSHA256, bHMACSHA256, bSHA512, bHMACSHA512,
     bSHA3_256, bSHA3_512,
@@ -10452,8 +10979,8 @@ begin
   end;
   for b := low(b) to high(b) do
     AddConsole(format('%d %s in %s i.e. %d/s or %s/s',
-      [n, TXT[b], MicroSecToString(time[b]), (n*Int64(1000*1000)) div time[b],
-       KB((size*Int64(1000*1000)) div time[b])]));
+      [n, TXT[b], MicroSecToString(time[b]), (Int64(n)*1000000) div time[b],
+       KB((Int64(size)*1000000) div time[b])]));
   for b := low(AES) to high(AES) do
     AES[b].Free;
 end;
@@ -11406,7 +11933,7 @@ var S: RawByteString;
     i,j: integer;
 //    E: RawByteString; i,L,n: integer;
 begin
-{  S := Base64Encode(CompressString(StringFromFile('d:\temp\tmpCurve.emf')));
+{  S := SockBase64Encode(CompressString(StringFromFile('d:\temp\tmpCurve.emf')));
   E := '  EMF: RawByteString = // some compressed simple EMF file'#13#10;
   L := length(S);
   i := 1;
@@ -11521,7 +12048,7 @@ begin
 end;
 
 procedure InternalSQLFunctionCharIndex(Context: TSQLite3FunctionContext;
-  argc: integer; var argv: TSQLite3ValueArray); {$ifndef SQLITE3_FASTCALL}cdecl;{$endif}
+  argc: integer; var argv: TSQLite3ValueArray); cdecl;
 var StartPos: integer;
 begin
   case argc of
@@ -11598,15 +12125,12 @@ end;
 var
   SoundexValues: array[0..5] of RawUTF8;
   Names: TRawUTF8DynArray;
-  i1,i2: integer;
+  i,i1,i2: integer;
   Res: Int64;
   id: TID;
   password, s: RawUTF8;
   R: TSQLRequest;
 begin
-  if Pos('TSQLite3Library',Owner.CustomVersions)=0 then
-    Owner.CustomVersions := Owner.CustomVersions+#13#10+
-      string(sqlite3.ClassName)+' '+string(sqlite3.Version);
   Check(JSONGetID('{"id":123}',id) and (id=123));
   Check(JSONGetID('{"rowid":1234}',id) and (id=1234));
   Check(JSONGetID(' { "id": 123}',id) and (id=123));
@@ -11710,8 +12234,21 @@ begin
   if password<>'' then begin // check file encryption password change
     Check(Demo.MemoryMappedMB=0,'mmap pragma disallowed');
     FreeAndNil(Demo); // if any exception occurs in Create(), Demo.Free is OK
-    ChangeSQLEncryptTablePassWord(TempFileName,'password1','');
-    ChangeSQLEncryptTablePassWord(TempFileName,'','NewPass');
+    check(IsSQLite3File(TempFileName));
+    check(IsSQLite3FileEncrypted(TempFileName));
+    check(not IsOldSQLEncryptTable(TempFileName));
+    check(not ChangeSQLEncryptTablePassWord(TempFileName,'password1','password1'));
+    check(IsSQLite3File(TempFileName));
+    check(IsSQLite3FileEncrypted(TempFileName));
+    check(not IsOldSQLEncryptTable(TempFileName));
+    check(ChangeSQLEncryptTablePassWord(TempFileName,'password1',''));
+    check(IsSQLite3File(TempFileName));
+    check(not IsOldSQLEncryptTable(TempFileName));
+    check(not IsSQLite3FileEncrypted(TempFileName));
+    check(ChangeSQLEncryptTablePassWord(TempFileName,'','NewPass'));
+    check(IsSQLite3File(TempFileName));
+    check(IsSQLite3FileEncrypted(TempFileName));
+    check(not IsOldSQLEncryptTable(TempFileName));
     Demo := TSQLDataBase.Create(TempFileName,'NewPass'); // reuse the temporary file
     Demo.Synchronous := smOff;
     Demo.LockingMode := lmExclusive;
@@ -11736,6 +12273,11 @@ begin
   Check(Names[0]='People');
   Demo.Execute('SELECT Concat(FirstName," and ") FROM People WHERE LastName="Einstein"',s);
   Check(Hash32(s)=$68A74D8E,'Albert1 and Albert1 and Albert2 and Albert3 and ...');
+  i1 := Demo.Execute('SELECT FirstName from People WHERE FirstName like "%eona%"',Names);
+  check(i1=2002,'like/strcspn');
+  check(Names[i1]='');
+  for i := 0 to i1-1 do
+    check(PosEx('eona',Names[i])>0);
 end;
 
 procedure TTestSQLite3Engine.VirtualTableDirectAccess;
@@ -12434,6 +12976,37 @@ begin
   ClientTest;
 end;
 
+procedure TTestClientServerAccess.HTTPClientCustomEncryptionAesSha;
+var rnd: THash256;
+    sign: TSynSigner;
+begin
+  TAESPRNG.Main.FillRandom(rnd);
+  sign.Init(saSha256,'secret1');
+  Client.SetCustomEncryption(TAESOFB.Create(rnd),@sign,AlgoSynLZ);
+  DataBase.SetCustomEncryption(TAESOFB.Create(rnd),@sign,AlgoSynLZ);
+  ClientTest;
+end;
+
+procedure TTestClientServerAccess.HTTPClientCustomEncryptionAes;
+var rnd: THash256;
+begin
+  TAESPRNG.Main.FillRandom(rnd);
+  Client.SetCustomEncryption(TAESOFB.Create(rnd),nil,AlgoSynLZ);
+  DataBase.SetCustomEncryption(TAESOFB.Create(rnd),nil,AlgoSynLZ);
+  ClientTest;
+end;
+
+procedure TTestClientServerAccess.HTTPClientCustomEncryptionSha;
+var sign: TSynSigner;
+begin
+  sign.Init(saSha256,'secret2');
+  Client.SetCustomEncryption(nil,@sign,AlgoSynLZ);
+  DataBase.SetCustomEncryption(nil,@sign,AlgoSynLZ);
+  ClientTest;
+  Client.SetCustomEncryption(nil,nil,nil); // disable custom encryption
+  DataBase.SetCustomEncryption(nil,nil,nil);
+end;
+
 procedure TTestClientServerAccess.HttpSeveralDBServers;
 var Instance: array[0..2] of record
       Model: TSQLModel;
@@ -12612,7 +13185,6 @@ type
     property People: TSQLRecordPeopleExt read fPeople write fPeople;
   end;
 
-{$ifdef INCLUDE_FTS3}
   TSQLFTSTest = class(TSQLRecordFTS3)
   private
     fSubject: RawUTF8;
@@ -12621,7 +13193,7 @@ type
     property Subject: RawUTF8 read fSubject write fSubject;
     property Body: RawUTF8 read fBody write fBody;
   end;
-{$endif}
+
   TSQLASource = class;
   TSQLADest = class;
   TSQLADests = class(TSQLRecordMany)
@@ -13421,7 +13993,7 @@ begin
           Client2.Free;
         end;
         Check(IsSQLite3File('testpass.db3'));
-        Check(IsSQLite3FileEncrypted('testpass.db3')=(password<>''));
+        Check(IsSQLite3FileEncrypted('testpass.db3')=(password<>''),'encrypt1');
         // try to read then update the crypted file
         Client2 := TSQLRestClientDB.Create(Model,nil,'testpass.db3',TSQLRestServerDB,false,password);
         try
@@ -13446,12 +14018,12 @@ begin
           Client2.Free;
         end;
         Check(IsSQLite3File('testpass.db3'));
-        Check(IsSQLite3FileEncrypted('testpass.db3')=(password<>''));
+        Check(IsSQLite3FileEncrypted('testpass.db3')=(password<>''),'encrypt2');
         {$ifndef NOSQLITE3ENCRYPT}
         // now read it after uncypher
-        ChangeSQLEncryptTablePassWord('testpass.db3',password,'');
+        check(ChangeSQLEncryptTablePassWord('testpass.db3',password,''));
         Check(IsSQLite3File('testpass.db3'));
-        Check(not IsSQLite3FileEncrypted('testpass.db3'));
+        Check(not IsSQLite3FileEncrypted('testpass.db3'),'encrypt3');
         Client2 := TSQLRestClientDB.Create(Model,nil,'testpass.db3',TSQLRestServerDB,false,'');
         try
           R2 := TSQLRecordPeople.CreateAndFillPrepare(Client2,'');
@@ -14052,8 +14624,7 @@ begin
      end;
   end;
 end;
-{$endif}
-{$ifdef INCLUDE_FTS3}
+{$endif LVCL}
 procedure TestFTS3(aClient: TSQLRestClient);
 var FTS: TSQLFTSTest;
     StartID, i: integer;
@@ -14111,7 +14682,6 @@ begin
     FTS.Free;
   end;
 end;
-{$endif}
 procedure TestVirtual(aClient: TSQLRestClient; DirectSQL: boolean; const Msg: string;
   aClass: TSQLRecordClass);
 var n, i, ndx, added: integer;
@@ -14236,9 +14806,7 @@ var i: integer;
 begin
   try
     Check(ClientDist.SetUser('User','synopse'));
-    {$ifdef INCLUDE_FTS3}
     TestFTS3(ClientDist);
-    {$endif}
     TestDynArray(ClientDist);
     {$ifndef LVCL}
     TestObject(ClientDist);
@@ -14325,7 +14893,7 @@ begin
   Demo.RegisterSQLFunction(TypeInfo(TIntegerDynArray),@SortDynArrayInteger,
     'MyIntegerDynArrayContains');
   ModelC := TSQLModel.Create(
-    [TSQLRecordPeople, {$ifdef INCLUDE_FTS3} TSQLFTSTest, {$endif}
+    [TSQLRecordPeople, TSQLFTSTest,
      TSQLASource, TSQLADest, TSQLADests, TSQLRecordPeopleArray
      {$ifndef LVCL}, TSQLRecordPeopleObject{$endif},
      TSQLRecordDali1,TSQLRecordDali2, TSQLRecordCustomProps],'root');
@@ -14440,15 +15008,15 @@ begin
           VA.DynArray('FileVersion').Add(FV);
         end else
           str(n,VA.fUTF8);
-{$ifdef PUBLISHRECORD}
+        {$ifdef PUBLISHRECORD}
         VA.fRec.nPhrase := n;
         VA.fRec.nCol := n*2;
         VA.fRec.hits[2].docs_with_hits := n*3;
-{$endif PUBLISHRECORD}
+        {$endif PUBLISHRECORD}
         Check(Client.Add(VA,true)=n);
       end;
       Client.Commit;
-{$ifndef LVCL}
+      {$ifndef LVCL}
       if Client.TransactionBegin(TSQLRecordPeopleObject) then
       try
         V2.FillPrepare(Client,'LastName=:("Morse"):');
@@ -14473,16 +15041,14 @@ begin
       except
         Client.RollBack;
       end;
-{$endif}
-{$ifdef INCLUDE_FTS3}
+      {$endif LVCL}
       TestFTS3(Client);
-{$endif}
       TestDynArray(Client);
-{$ifndef LVCL}
+      {$ifndef LVCL}
       TestObject(Client);
-{$endif}
+      {$endif}
       InternalTestMany(self,Client);
-      // RegisterVirtualTableModule(TSQLVirtualTableJSON) already done
+      // RegisterVirtualTableModule(TSQLVirtualTableJSON) done above
       TestVirtual(Client,false,'Virtual Table access via SQLite 1',TSQLRecordDali1);
       TestVirtual(Client,false,'Virtual Table access via SQLite 1',TSQLRecordDali2);
       TestVirtual(Client,true,'Direct Virtual Table access 1',TSQLRecordDali1);
@@ -14524,7 +15090,7 @@ begin
       BackupFN := Format('backupbackground%s.dbsynlz',[ClassName]);
       deleteFile(BackupFN);
       BackupTimer.Start;
-      Check(Client.DB.BackupBackground(BackupFN,1024,0,OnBackupProgress,true));
+      Check(Client.DB.BackupBackground(BackupFN,1024,0,OnBackupProgress,true)); 
       // test per-one and batch requests
       if ClassType=TTestMemoryBased then begin // time consuming, so do it once
         Server := TSQLRestServerTest.Create(TSQLModel.Create([TSQLRecordPeople]),false);
@@ -14729,14 +15295,14 @@ begin
     V2.Free;
     VA.Free;
     VP.Free;
-{$ifndef LVCL}
+    {$ifndef LVCL}
     VO.Free;
-{$endif}
+    {$endif}
     FreeAndNil(Demo);
   end;
   {$ifndef NOSQLITE3ENCRYPT}
   if EncryptedFile then begin
-    ChangeSQLEncryptTablePassWord(TempFileName,'NewPass',''); // uncrypt file
+    check(ChangeSQLEncryptTablePassWord(TempFileName,'NewPass','')); // uncrypt file
     Check(IsSQLite3File(TempFileName));
   end;
   {$endif}
@@ -14751,6 +15317,36 @@ var J: TSQLTableJSON;
     {$endif}
     {$ifndef LVCL}
     row: variant;
+    {$endif}
+    {$ifndef NOVARIANTS}
+    lContactDataQueueDynArray: TDynArray;
+    lContactDataQueueArray: TRawUTF8DynArray;
+    lContactDataQueueJSON: TDocVariantData;
+    lData: RawUTF8;
+    lDocData: TDocVariantData;
+const
+  TEST_DATA = '['+
+  '{"REC_ID":29915,"CHANNEL":117,"PHONE":"5004392222,12345678","RINGS":0,' +
+    '"QUEUE_CALL":2,"PRIORITY":25,"TIMESTAMP_CALL":"2017-10-26T04:48:14",' +
+    '"RETRIES_CALL":2,"CONNECTION_TYPE":0,"DISCONNECTION_TYPE":0,"STATUS_CALL":9,'+
+    '"GC_STATUS_CALL":5404,"START_COMMUNICATION":"","HELLO":0,"EXTENSION":null,' +
+    '"NODE":1,"RESULT_CALL":0,"CONNECT_TIME":0,"SKILL":null,"AGENT_POSITION":0,' +
+    '"COMM_RESULT_CODE":null,"V01_TM":"Marcie","V02_TM":"Sayton",'+
+    '"V03_TM":"msaytonpe@umn.edu"},'+
+	'{"REC_ID":29916,"CHANNEL":132,"PHONE":"1763252375","RINGS":0,"QUEUE_CALL":2,' +
+    '"PRIORITY":25,"TIMESTAMP_CALL":"2017-10-26T04:48:14","RETRIES_CALL":2,' +
+    '"CONNECTION_TYPE":0,"DISCONNECTION_TYPE":0,"STATUS_CALL":9,'+
+    '"GC_STATUS_CALL":5404,"START_COMMUNICATION":"","HELLO":0,"EXTENSION":null,' +
+    '"NODE":1,"RESULT_CALL":0,"CONNECT_TIME":0,"SKILL":null,"AGENT_POSITION":0,' +
+    '"COMM_RESULT_CODE":null,"V01_TM":"Orsola","V02_TM":"Hainge",'+
+    '"V03_TM":"ohaingepf@reverbnation.com"},'+
+	'{"REC_ID":29917,"CHANNEL":174,"PHONE":"9149556917","RINGS":0,"QUEUE_CALL":2,' +
+    '"PRIORITY":25,"TIMESTAMP_CALL":"2017-10-26T04:48:14","RETRIES_CALL":2,' +
+    '"CONNECTION_TYPE":0,"DISCONNECTION_TYPE":0,"STATUS_CALL":9,'+
+    '"GC_STATUS_CALL":5404,"START_COMMUNICATION":"","HELLO":0,"EXTENSION":null,' +
+    '"NODE":1,"RESULT_CALL":0,"CONNECT_TIME":0,"SKILL":null,"AGENT_POSITION":0,' +
+    '"COMM_RESULT_CODE":null,"V01_TM":"Storm","V02_TM":"Jenton",'+
+    '"V03_TM":"sjentonpg@senate.gov"}]';
     {$endif}
 begin
   J := TSQLTableJSON.Create('',JS);
@@ -14901,6 +15497,30 @@ begin
     finally
       Free;
     end;
+  // some tests to avoid regression about bugs reported by users on forum
+  {$ifndef NOVARIANTS}
+  J := TSQLTableJSON.Create('',TEST_DATA);
+  try
+    check(J.fieldCount=24);
+    check(J.rowCount=3);
+    lData := j.GetJSONValues(true);
+    check(lData[1]='[');
+    check(JSONArrayCount(@lData[2])=J.rowCount);
+    check(Hash32(lData)=$B1C13092);
+    lData := j.GetJSONValues(false);
+    check(Hash32(lData)=$6AB30A2);
+  finally
+    J.Free;
+  end;
+  lContactDataQueueJSON.InitJSON(TEST_DATA);
+  lContactDataQueueDynArray.Init(TypeInfo(TRawUTF8DynArray), lContactDataQueueArray);
+  lContactDataQueueJSON.ToRawUTF8DynArray(lContactDataQueueArray);
+  lData := lContactDataQueueDynArray.SaveToJSON;
+  lDocData.InitJSON(lData, [dvoJSONObjectParseWithinString]);
+  check(lDocData.Count=3);
+  check(Hash32(lDocData.ToJSON)=$FCF948A5);
+  check(lDocData.Value[0].QUEUE_CALL=2);
+  {$endif}
 end;
 
 {$ifdef UNICODE}
@@ -15049,13 +15669,13 @@ type
 
   TServicePerThread = class(TInterfacedObjectWithCustomCreate,ITestPerThread)
   protected
-    fThreadIDAtCreation: TThreadID;
+    fThreadIDAtCreation: PtrUInt; // TThreadID  = ^TThreadRec under BSD
   public
     constructor Create; override;
     function GetContextServiceInstanceID: PtrUInt;
-    function GetThreadIDAtCreation: TThreadID;
-    function GetCurrentThreadID: TThreadID;
-    function GetCurrentRunningThreadID: TThreadID;
+    function GetThreadIDAtCreation: PtrUInt;
+    function GetCurrentThreadID: PtrUInt;
+    function GetCurrentRunningThreadID: PtrUInt;
   end;
 
 
@@ -15166,17 +15786,17 @@ end;
 
 function GetThreadID: TThreadID;
 begin // avoid name conflict with TServiceComplexCalculator.GetCurrentThreadID
-  result := TThreadID(GetCurrentThreadId);
+  result := GetCurrentThreadId;
 end;
 
 procedure TServiceComplexCalculator.EnsureInExpectedThread;
 begin
   case GlobalInterfaceTestMode of
   itmDirect, itmClient, itmMainThread:
-    if GetThreadID<>TThreadID(MainThreadID) then
+    if GetThreadID<>MainThreadID then
       raise Exception.Create('Shall be in main thread');
   itmPerInterfaceThread, itmHttp, itmLocked:
-    if GetThreadID=TThreadID(MainThreadID) then
+    if GetThreadID=MainThreadID then
       raise Exception.Create('Shall NOT be in main thread') else
     if ServiceContext.RunningThread=nil then
       raise Exception.Create('Shall have a known RunningThread');
@@ -15300,19 +15920,19 @@ end;
 constructor TServicePerThread.Create;
 begin
   inherited;
-  fThreadIDAtCreation := GetThreadID;
+  fThreadIDAtCreation := PtrUInt(GetThreadID);
 end;
 
-function TServicePerThread.GetCurrentThreadID: TThreadID;
+function TServicePerThread.GetCurrentThreadID: PtrUInt;
 begin
-  result := GetThreadID;
+  result := PtrUInt(GetThreadID);
   with PServiceRunningContext(@ServiceContext)^ do
     if Request<>nil then
       if PtrUInt(Result)<>Request.ServiceInstanceID then
         raise Exception.Create('Unexpected ServiceInstanceID');
 end;
 
-function TServicePerThread.GetThreadIDAtCreation: TThreadID;
+function TServicePerThread.GetThreadIDAtCreation: PtrUInt;
 begin
   result := fThreadIDAtCreation;
 end;
@@ -15328,7 +15948,7 @@ begin
     end;
 end;
 
-function TServicePerThread.GetCurrentRunningThreadID: TThreadID;
+function TServicePerThread.GetCurrentRunningThreadID: PtrUInt;
 var Thread: TThread;
 begin
   Thread := ServiceContext.RunningThread;
@@ -15336,8 +15956,8 @@ begin
     raise Exception.Create('Unexpected Thread=nil');
   if Thread=nil then
     result := 0 else begin
-    result := TThreadID(Thread.ThreadID);
-    if result<>GetThreadID then
+    result := PtrUInt(Thread.ThreadID);
+    if result<>PtrUInt(GetThreadID) then
       raise Exception.Create('Unexpected ThreadID');
   end;
 end;
@@ -15398,8 +16018,6 @@ begin
     Check(i3=i1+length(s));
     Check(c=cardinal(i2)+1);
     Check(o=[tfoUnique,tfoCaseInsensitive]);
-    {$ifndef FPC} // FPC dynamic arrays parameters are not consistent with Delphi
-                  // see by fpc\compiler\i386\cpupara.pas :(
     Ints[0] := i1;
     Ints[1] := i2;
     SetLength(Str2,3);
@@ -15428,9 +16046,7 @@ begin
     Check(RecRes.JSON=StringToUTF8(Rec1.FileExtension));
     CheckSame(n1,n2);
     Rec1.FileExtension := ''; // to avoid memory leak
-    {$endif}
   end;
-  {$ifndef FPC} // FPC dynamic arrays parameters are not consistent with Delphi
   n1 := 0;
   RecRes := I.ComplexCall(Ints,nil,Str2,Rec1,Rec2,n1,n2);
   Check(length(Str2)=5);
@@ -15439,7 +16055,6 @@ begin
   Check(Str2[2]='GHIJK');
   Check(Str2[3]='one,two,three');
   Check(Str2[4]='');
-  {$endif}
   s := StringToUTF8(StringOfChar(#1,100));
   check(I.DirectCall(s)=100);
 end;
@@ -15454,7 +16069,7 @@ var s: RawUTF8;
     Item: TCollTest;
     List,Copy: TCollTestsI;
     j: integer;
-    x,y: TThreadID; // alf: to help debugging
+    x,y: PtrUInt; // TThreadID  = ^TThreadRec under BSD
 {$endif}
 {$ifndef NOVARIANTS}
     V1,V2,V3: variant;
@@ -15478,9 +16093,9 @@ begin
   end;
   case GlobalInterfaceTestMode of
   itmMainThread:
-    Check(Inst.CC.GetCurrentThreadID=TThreadID(MainThreadID));
+    Check(Inst.CC.GetCurrentThreadID=MainThreadID);
   itmPerInterfaceThread,itmLocked:
-    Check(Inst.CC.GetCurrentThreadID<>TThreadID(MainThreadID));
+    Check(Inst.CC.GetCurrentThreadID<>MainThreadID);
   end;
   TestCalculator(Inst.I);
   TestCalculator(Inst.CC); // test the fact that CC inherits from ICalculator
@@ -15600,22 +16215,22 @@ begin
   case GlobalInterfaceTestMode of
   itmDirect: begin
     Check(x=y);
-    Check(Inst.CT.GetCurrentRunningThreadID=TThreadID(0));
+    Check(Inst.CT.GetCurrentRunningThreadID=0);
     Check(Inst.CT.GetContextServiceInstanceID=0);
   end;
   itmClient, itmPerInterfaceThread: begin
     Check(x=y);
-    Check(Inst.CT.GetCurrentRunningThreadID=TThreadID(0));
+    Check(Inst.CT.GetCurrentRunningThreadID=0);
     Check(Inst.CT.GetContextServiceInstanceID<>0);
   end;
   itmLocked, itmMainThread: begin
     Check(x=y);
-    Check(Inst.CT.GetCurrentRunningThreadID<>TThreadID(0));
+    Check(Inst.CT.GetCurrentRunningThreadID<>0);
     Check(Inst.CT.GetContextServiceInstanceID<>0);
   end;
   itmHttp: begin
-    Check(Inst.CT.GetCurrentRunningThreadID<>TThreadID(0));
-    Check(Inst.CT.GetCurrentThreadID<>TThreadID(MainThreadID));
+    Check(Inst.CT.GetCurrentRunningThreadID<>0);
+    Check(Inst.CT.GetCurrentThreadID<>PtrUInt(MainThreadID));
     Check(Inst.CT.GetContextServiceInstanceID<>0);
   end;
   end;
@@ -16108,7 +16723,7 @@ begin
     FillCharFast(Inst,sizeof(Inst),0); // all Expected..ID=0
     HTTPClient := TSQLHttpClient.Create('127.0.0.1',HTTP_DEFAULTPORT,fModel);
     try
-      HTTPClient.ServicePublishOwnInterfaces(fClient.Server); 
+      HTTPClient.ServicePublishOwnInterfaces(fClient.Server);
       //HTTPClient.OnIdle := TLoginForm.OnIdleProcess; // from mORMotUILogin
       // HTTPClient.Compression := [hcSynShaAes]; // 350ms (300ms for [])
       Check(HTTPClient.SetUser('User','synopse'));
@@ -16919,23 +17534,24 @@ begin
 end;
 
 procedure TTestMultiThreadProcess.Locked;
-begin
+begin // 1=7310/s  2=8689/s  5=7693/s  10=3893/s  30=1295/s  50=777/s
+  // (numbers below are taken from a Xeon Phi 2 @ 1.5GHz with 288 cores)
   Test(TSQLRestClientDB,HTTP_DEFAULT_MODE,amLocked);
 end;
 
 procedure TTestMultiThreadProcess.Unlocked;
-begin
+begin // 1=7342/s  2=9400/s  5=7693/s  10=3894/s  30=1295/s  50=777/s
   Test(TSQLRestClientDB,HTTP_DEFAULT_MODE,amUnlocked);
 end;
 
 procedure TTestMultiThreadProcess.BackgroundThread;
-begin
+begin // 1=6173/s  2=7299/s  5=7244/s  10=3912/s  30=1301/s  50=777/s
   Test(TSQLRestClientDB,HTTP_DEFAULT_MODE,amBackgroundThread);
 end;
 
 {$ifndef LVCL}
 procedure TTestMultiThreadProcess.MainThread;
-begin
+begin // 1=5000/s  2=5911/s  5=4260/s  10=2663/s  30=1126/s  50=707/s
   Test(TSQLRestClientDB,HTTP_DEFAULT_MODE,amMainThread);
 end;
 {$endif}
@@ -16948,25 +17564,24 @@ end;
 {$endif}
 
 procedure TTestMultiThreadProcess.SocketAPI;
-begin
+begin //  1=2470/s  2=3866/s  5=3608/s  10=3556/s  30=1303/s  50=780/s
   Test(TSQLHttpClientWinSock,useHttpSocket);
 end;
 
 procedure TTestMultiThreadProcess.Websockets;
-begin
+begin // 1=2433/s  2=3389/s  5=3208/s  10=3354/s  30=1303/s  50=778/s
   Test(TSQLHttpClientWebsockets,useBidirSocket);
 end;
 
 {$ifdef USELIBCURL}
 procedure TTestMultiThreadProcess._libcurl;
-begin
-  exit; // circumvent testing issues until we actually need it
+begin //  1=48/s  2=95/s  5=234/s  10=433/s  30=729/s  50=594/s
   Test(TSQLHttpClientCurl,useHttpSocket);
 end;
 {$endif}
 
 procedure TTestMultiThreadProcess._TSQLRestClientDB;
-begin
+begin //  1=7347/s  2=8100/s  5=7654/s  10=3898/s  30=1295/s  50=777/s
   Test(TSQLRestClientDB);
 end;
 
@@ -16983,7 +17598,7 @@ end;
 {$endif}
 
 procedure TTestMultiThreadProcess._TSQLRestServerDB;
-begin
+begin //  1=9332/s  2=9300/s  5=7826/s  10=3891/s  30=1295/s  50=777/s
   Test(TSQLRestServerDB);
 end;
 

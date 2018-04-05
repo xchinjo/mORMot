@@ -53,13 +53,6 @@ unit SyNodeProto;
   ***** END LICENSE BLOCK *****
 
 
-  ---------------------------------------------------------------------------
-   Download the mozjs-45 library at
-     x32: https://unitybase.info/downloads/mozjs-45.zip
-     x64: https://unitybase.info/downloads/mozjs-45-x64.zip
-  ---------------------------------------------------------------------------
-
-
   Version 1.18
   - initial release. Use SpiderMonkey 45
 
@@ -423,12 +416,12 @@ begin
 
   obj_ := cx.NewRootedObject(cx.NewObject(nil));
   try
-    aParent.ptr.DefineUCProperty(cx, Pointer(s), Length(s), obj_.ptr.ToJSValue, JSPROP_ENUMERATE or JSPROP_PERMANENT or JSPROP_READONLY, nil, nil);
+    aParent.ptr.DefineUCProperty(cx, Pointer(s), Length(s), obj_.ptr.ToJSValue, JSPROP_ENUMERATE or JSPROP_PERMANENT, nil, nil);
     with ti^.EnumBaseType^ do begin
       for i := MinValue to MaxValue do begin
         s := UTF8ToSynUnicode(GetEnumNameTrimed(i));
         val.asInteger := i;
-        obj_.ptr.DefineUCProperty(cx, Pointer(s), Length(s), val, JSPROP_ENUMERATE or JSPROP_PERMANENT or JSPROP_READONLY, nil, nil);
+        obj_.ptr.DefineUCProperty(cx, Pointer(s), Length(s), val, JSPROP_ENUMERATE or JSPROP_PERMANENT, nil, nil);
       end;
     end;
   finally
@@ -593,7 +586,7 @@ begin
   FjsObjName := StringToAnsi7(fRttiCls.ClassName);
 
   global := cx.CurrentGlobalOrNull;
-  global.ReservedSlot[slotIndex] := cx.NewJSString(FjsObjName).ToJSVal;
+  global.ReservedSlot[fSlotIndex] := cx.NewJSString(fRttiCls.ClassName).ToJSVal;
 
   FMethodsDA.Init(TypeInfo(TSMMethodDynArray), FMethods);
   InitObject(aParent);
@@ -634,7 +627,7 @@ begin
     new(ObjRec);
     ObjRec.init(otProto,self);
     obj.PrivateData := ObjRec;
-    global.ReservedSlot[slotIndex] := obj.ToJSValue;
+    global.ReservedSlot[fSlotIndex] := obj.ToJSValue;
   finally
     cx.EndRequest;
   end;

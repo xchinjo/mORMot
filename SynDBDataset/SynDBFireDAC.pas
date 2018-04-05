@@ -421,6 +421,7 @@ begin
   inherited Create(aProperties);
   fDatabase := TADConnection.Create(nil);
   fDatabase.ResourceOptions.SilentMode := True; // no need for wait cursor
+  fDatabase.ResourceOptions.AutoReconnect := True;
   fDatabase.Params.Text :=
     (fProperties as TSQLDBFireDACConnectionProperties).fFireDACOptions.Text;
 end;
@@ -431,8 +432,8 @@ begin
   if fDatabase=nil then
     raise ESQLDBFireDAC.CreateUTF8('%.Connect(%): Database=nil',
       [self,fProperties.ServerName]);
-  Log := SynDBLog.Enter(Self,pointer(FormatUTF8('Connect to DriverID=% Database=%',
-    [FIREDAC_PROVIDER[fProperties.DBMS],fProperties.DatabaseName])),true);
+  Log := SynDBLog.Enter('Connect to DriverID=% Database=%',
+    [FIREDAC_PROVIDER[fProperties.DBMS],fProperties.DatabaseName],self);
   try
     fDatabase.Open;
     inherited Connect; // notify any re-connection 

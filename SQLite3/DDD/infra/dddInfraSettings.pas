@@ -69,10 +69,13 @@ uses
   mORMot,
   mORMotDDD,
   SynCrtSock,
-  SynSQLite3, mORMotSQLite3, // for internal SQlite3 database
-  SynDB, mORMotDB,           // for TDDDRestSettings on external SQL database
-  SynMongoDB, mORMotMongoDB, // for TDDDRestSettings on external NoSQL database
-  mORMotWrappers;            // for TDDDRestSettings to publish wrapper methods
+  SynSQLite3,
+  mORMotSQLite3,   // for internal SQlite3 database
+  SynDB,
+  mORMotDB,        // for TDDDRestSettings on external SQL database
+  SynMongoDB,
+  mORMotMongoDB,   // for TDDDRestSettings on external NoSQL database
+  mORMotWrappers;  // for TDDDRestSettings to publish wrapper methods
 
 
 { ----- Manage Service/Daemon settings }
@@ -122,7 +125,6 @@ type
     // - in order not to loose any log, a background thread can be created
     // and will be responsible of flushing all pending log content every
     // period of time (e.g. every 10 seconds)
-    // - this parameter is effective only under Windows by now
     property AutoFlushTimeOut: integer read fAutoFlush write fAutoFlush;
     /// by default (false), logging will use manual stack trace browsing
     // - if you experiment unexpected EAccessViolation, try to set this setting
@@ -270,7 +272,8 @@ type
     (optEraseDBFileAtStartup,
      optSQlite3FileSafeSlowMode,
      optSQlite3FileSafeNonExclusive,
-     optNoSystemUse);
+     optNoSystemUse,
+     optSQlite3File4MBCacheSize);
 
   /// define options to be used for TDDDRestSettings
   TDDDRestSettingsOptions = set of TDDDRestSettingsOption;
@@ -541,21 +544,28 @@ type
 
   /// storage class for a ServicesLog settings
   TDDDServicesLogRestSettings = class(TDDDRestSettings)
+  protected
+    fShardDBCount: Integer;
   public
     /// compute a stand-alone REST instance for interface-based services logging
-    // - by default, will create a local SQLite3 file for storage
     // - all services of aMainRestWithServices would log their calling information
     // into a dedicated table, but the methods defined in aExcludedMethodNamesCSV
+    // (which should be specified, even as '', to avoid FPC compilation error)
+    // - by default, will create a local SQLite3 file for storage, optionally
+    // via TSQLRestStorageShardDB if ShardDBCount is set
     // - the first supplied item of aLogClass array would be used for the
     // service logging; any additional item would be part of the model of the
     // returned REST instance, but may be used later on (e.g. to handle
     // DB-based asynchronous remote notifications as processed by
     // TServiceFactoryClient.SendNotificationsVia method)
-    // - if aLogClass=[], TSQLRecordServiceLog would be used as a class
+    // - if aLogClass=[], plain TSQLRecordServiceLog would be used as default
+    // - aShardRange is used for TSQLRestStorageShardDB if ShardDBCount>0
     function NewRestInstance(aRootSettings: TDDDAppSettingsAbstract;
-      aMainRestWithServices: TSQLRestServer;
-      const aLogClass: array of TSQLRecordServiceLogClass;
-      const aExcludedMethodNamesCSV: RawUTF8=''): TSQLRest; reintroduce;
+      aMainRestWithServices: TSQLRestServer; const aLogClass: array of TSQLRecordServiceLogClass;
+      const aExcludedMethodNamesCSV: RawUTF8; aShardRange: TID=50000): TSQLRest; reintroduce;
+  published
+    /// if set, will define MaxShardCount for TSQLRestStorageShardDB persistence
+    property ShardDBCount: Integer read fShardDBCount write fShardDBCount;
   end;
 
   /// parent class for storing a HTTP published service/daemon settings
@@ -587,6 +597,15 @@ type
     property Http: TSQLHttpServerDefinition read fHttp;
   end;
 
+  /// stand-alone property to publish a secondary logged service over HTTP
+  TDDDRestHttpLogSettings = class(TDDDRestHttpSettings)
+  protected
+    fServicesLog: TDDDServicesLogRestSettings;
+  published
+    /// how the SOA calls would be logged into their own SQlite3 database
+    property ServicesLog: TDDDServicesLogRestSettings read fServicesLog;
+  end;
+  
   /// storage class for a remote MongoDB server direct access settings
   TDDDMongoDBRestSettings = class(TDDDRestSettings)
   public
@@ -635,9 +654,7 @@ begin
     FileExistsAction := acAppend; // default rotation mode
     if Log.StackTraceViaAPI then
       StackTraceUse := stOnlyAPI;
-    {$ifdef MSWINDOWS}
-    AutoFlushTimeOut := Log.AutoFlushTimeOut;
-    {$endif}
+    // AutoFlushTimeOut not set now, since won't work with /form
     if (Log.SyslogServer<>'') and (Log.SyslogServer[1]<>'?') and
        not Assigned(EchoCustom) and (fSyslog=nil) and (Log.SyslogLevels<>[]) and
        uri.From(Log.SyslogServer,'514') then
@@ -889,6 +906,8 @@ begin
     if optSQlite3FileSafeSlowMode in Options then
       Synchronous := smNormal else
       Synchronous := smOff;
+    if optSQlite3File4MBCacheSize in Options then
+      CacheSize := (4 shl 20) div PageSize;
   end;
 end;
 
@@ -1011,8 +1030,10 @@ end;
 function TDDDServicesLogRestSettings.NewRestInstance(
   aRootSettings: TDDDAppSettingsAbstract; aMainRestWithServices: TSQLRestServer;
   const aLogClass: array of TSQLRecordServiceLogClass;
-  const aExcludedMethodNamesCSV: RawUTF8): TSQLRest;
+  const aExcludedMethodNamesCSV: RawUTF8; aShardRange: TID): TSQLRest;
 var classes: TSQLRecordClassDynArray;
+    server: TSQLRestServer;
+    fn: TFileName;
     i: integer;
 begin
   if length(aLogClass)=0 then begin
@@ -1023,14 +1044,26 @@ begin
     for i := 0 to high(aLogClass) do
       classes[i] := aLogClass[i];
   end;
-  result := inherited NewRestInstance(aRootSettings,TSQLModel.Create(classes),
-    [riOwnModel,riDefaultLocalSQlite3IfNone,riCreateMissingTables]);
+  if (fShardDBCount > 0) and (aShardRange > 100) and (length(classes)=1) then
+    {$WARNINGS OFF} // methods are pure abstract, but fine with a single class
+    result := TSQLRestServer.CreateWithOwnModel(classes,false,fRoot) else
+    {$WARNINGS ON}
+    result := inherited NewRestInstance(aRootSettings,TSQLModel.Create(classes),
+      [riOwnModel,riDefaultLocalSQlite3IfNone,riCreateMissingTables]);
   if result=nil then
     exit;
-  if result.InheritsFrom(TSQLRestServerDB) then
-    TSQLRestServerDB(result).DB.UseCache := false;
+  if (fShardDBCount > 0) and (aShardRange > 100) then begin
+    server := result as TSQLRestServer;
+    fn := IncludeTrailingPathDelimiter(fDefaultDataFolder)+TFileName(fDefaultDataFileName);
+    if not server.StaticDataAdd(TSQLRestStorageShardDB.Create(
+       classes[0], server, aShardRange, [], fn, fShardDBCount)) then
+      raise EDDDInfraException.CreateUTF8('%.NewRestInstance(%) StaticDataAdd(%)=false',
+        [self,fRoot,classes[0]]);
+  end else
+    if result.InheritsFrom(TSQLRestServerDB) then
+      TSQLRestServerDB(result).DB.UseCache := false;
   // set the first supplied class type to log services
-  if aMainRestWithServices <> nil then
+  if (aMainRestWithServices <> nil) and classes[0].InheritsFrom(TSQLRecordServiceLog) then
     (aMainRestWithServices.ServiceContainer as TServiceContainerServer).
       SetServiceLog(result,TSQLRecordServiceLogClass(classes[0]),aExcludedMethodNamesCSV);
 end;

@@ -212,7 +212,7 @@ var
 // the blocking service may be specified in queries array; a set of unit names
 // in which those TCQRSServiceClass are defined may be specified
 // - a Mustache template content should be provided - e.g. asynch.pas.mustache
-// as published in SQLite3\DDD\dom folder of the source code repository   
+// as published in SQLite3\DDD\dom folder of the source code repository
 // - FileName would contain the resulting unit filename (without the .pas)
 // - ProjectName would be written in the main unit comment
 // - CallType should be the type used at Domain level to identify each
@@ -223,7 +223,7 @@ var
 // - ExceptionType may be customize, mainly to use a Domain-specific class
 // - blocking execution may reach some timeout waiting for the asynchronous
 // acknowledgement: a default delay (in ms) is to be supplied, and some custom
-// delays may be specified as trios, e.g. ['IMyInterface', 'Method', 10000, ...] 
+// delays may be specified as trios, e.g. ['IMyInterface', 'Method', 10000, ...]
 function GenerateAsynchServices(const services: array of TGUID;
   const queries: array of TClass; const units: array of const;
   const additionalcontext: array of const; Template, FileName, ProjectName,
@@ -624,24 +624,23 @@ end;
 procedure FillDescriptionFromSource(var Descriptions: TDocVariantData;
   const SourceFileName: TFileName);
 var desc,typeName,interfaceName: RawUTF8;
-    P,S: PUTF8Char;
+    P: PUTF8Char;
     withinCode: boolean;
 begin
-  S := pointer(StringFromFile(SourceFileName));
-  if S=nil then
+  P := pointer(StringFromFile(SourceFileName));
+  if P=nil then
     exit;
   withinCode := false;
   repeat // rough parsing of the .pas unit file to extract /// description
-    P := GetNextLineBegin(S,S);
     P := GotoNextNotSpace(P);
     if IdemPChar(P,'IMPLEMENTATION') then
       break; // only the "interface" section is parsed
     if IdemPChar(P,'{$IFDEF ') then begin
       repeat // just ignore any $ifdef ... $endif
-        GetNextLineBegin(P,P);
+        P := GotoNextLine(P);
         if P=nil then exit;
       until IdemPChar(GotoNextNotSpace(P),'{$ENDIF');
-      GetNextLineBegin(P,P);
+      P := GotoNextLine(P);
       P := GotoNextNotSpace(P);
     end;
     if (P[0]='/') and (P[1]='/') and (P[2]='/') then begin
@@ -655,10 +654,10 @@ begin
         P := GotoNextNotSpace(P);
         if IdemPChar(P,'{$IFDEF ') then begin
           repeat // just ignore any $ifdef ... $endif
-            GetNextLineBegin(P,P);
+            P := GotoNextLine(P);
             if P=nil then exit;
           until IdemPChar(GotoNextNotSpace(P),'{$ENDIF');
-          GetNextLineBegin(P,P);
+          P := GotoNextLine(P);
         end else
         if (P[0]='/') and (P[1]='/') then begin
           if P[2]='/' then inc(P,3) else inc(P,2);
@@ -701,9 +700,9 @@ begin
              IdemPropNameU(typeName,'procedure') then
             if GetNextFieldProp(P,typeName) then
               Descriptions.AddValue(interfaceName+'.'+typeName,RawUTF8ToVariant(desc));
-      S := P;
-    end;
-  until (S=nil) or (P=nil);
+    end else
+      P := GotoNextLine(P);
+  until (P=nil);
 end;
 
 procedure TWrapperContext.AddUnit(const aUnitName: ShortString;
@@ -983,8 +982,8 @@ begin
     'mORMotVersion',SYNOPSE_FRAMEWORK_VERSION,
     'exeVersion',ExeVersion.Version.Detailed,
     'exeInfo',ExeVersion.ProgramFullSpec,
-    'orm',variant(fORM), 
-    'soa',fSOA]);      
+    'orm',variant(fORM),
+    'soa',fSOA]);
   if fServer<>nil then
     _ObjAddProps(['root',fServer.Model.Root],result);
   if fHasAnyRecord then
@@ -1296,7 +1295,7 @@ end;
 function GenerateAsynchServices(const services: array of TGUID;
   const queries: array of TClass; const units: array of const;
   const additionalcontext: array of const; Template, FileName, ProjectName,
-  CallType, CallFunction, Key, KeyType, ExceptionType: RawUTF8; 
+  CallType, CallFunction, Key, KeyType, ExceptionType: RawUTF8;
   DefaultDelay: integer; const CustomDelays: array of const): RawUTF8;
 var
   server: TSQLRestServerFullMemory;

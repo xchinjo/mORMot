@@ -55,19 +55,6 @@ unit SyNode;
 
   ***** END LICENSE BLOCK *****
 
-
-  ---------------------------------------------------------------------------
-   Download the mozjs-45 library at
-     x32: https://unitybase.info/downloads/mozjs-45.zip
-     x64: https://unitybase.info/downloads/mozjs-45-x64.zip
-
-   Download the mozjs-52 library at ( define SM52 on the global level)
-     x32: https://unitybase.info/downloads/mozjs-52x32dlls.zip
-     x64: https://unitybase.info/downloads/mozjs-52x64dlls.zip
-   Linux x64: http://unitybase.info/media/files/libmozjs-52.zip
-  ---------------------------------------------------------------------------
-
-
   Version 1.18
   - initial release. Use SpiderMonkey 45
   - x64 support added
@@ -91,7 +78,12 @@ unit SyNode;
 interface
 
 uses
-  {$ifndef FPC} Windows, ShLwApi,{$else}FileUtil, LazFileUtils, dynlibs,{$endif}
+  {$ifndef FPC}
+  Windows,
+  ShLwApi, // for older Delphi versions download this file from JEDI library
+  {$else}
+  LazFileUtils, dynlibs,
+  {$endif}
   {$ifdef ISDELPHIXE2}System.SysUtils,{$else}SysUtils,{$endif}
   Classes,
   {$ifndef LVCL}
@@ -799,7 +791,7 @@ var process: PJSRootedObject;
     {$IFDEF FPC}
     I, Cnt: Integer;
     EnvStr: AnsiString;
-    Parts: TStringArray;
+    Parts: array of AnsiString;
     {$ELSE}
     EnvBlock, P, pEq: PChar;
     strName, strVal: SynUnicode;
@@ -826,7 +818,7 @@ begin
       EnvStr := GetEnvironmentString(I);
       Parts := EnvStr.Split('=', TStringSplitOptions.ExcludeEmpty);
       if (Length(Parts) = 2) and (Trim(Parts[0]) <> '') then begin
-        env.ptr.DefineUCProperty(cx, Trim(Parts[0]), cx.NewJSString(Trim(Parts[1])).ToJSVal,
+        env.ptr.DefineUCProperty(cx, StringToSynUnicode(Trim(Parts[0])), cx.NewJSString(Trim(Parts[1])).ToJSVal,
           JSPROP_ENUMERATE or JSPROP_PERMANENT or JSPROP_READONLY, nil, nil);
       end
     end;
@@ -898,6 +890,7 @@ destructor TSMEngine.Destroy;
 var
   unInitProc: TDllModuleUnInitProc;
   process: PJSRootedObject;
+  procExitCodeVal: jsval;
 begin
   try
     process := cx.NewRootedObject(GlobalObject.ptr.GetPropValue(cx,'process').asObject);
@@ -907,6 +900,9 @@ begin
         CallObjectFunction(process, 'emit', [cx.NewJSString('exit').ToJSVal])
       else
         raise Exception.Create('`process` initialized incorrectly (dont have `emit` method)');
+      procExitCodeVal := process.ptr.GetPropValue(cx, 'exitCode');
+      if procExitCodeVal.isInteger then
+        ExitCode := procExitCodeVal.asInteger;
     finally
       cx.FreeRootedObject(process);
     end;

@@ -299,7 +299,7 @@ function ToText(eac: TSQLRestStorageMongoDBEngineAddComputeID): PShortString; ov
 
 implementation
 
-function ToText(eac: TSQLRestStorageMongoDBEngineAddComputeID): PShortString; 
+function ToText(eac: TSQLRestStorageMongoDBEngineAddComputeID): PShortString;
 begin
   result := GetEnumName(TypeInfo(TSQLRestStorageMongoDBEngineAddComputeID),ord(eac));
 end;
@@ -1218,7 +1218,7 @@ begin
     with Stmt.Select[i] do begin
       if FunctionKnown=funcDistinct then
         continue;
-      func := TFunc(FindRawUTF8(['max','min','avg','sum','count'],FunctionName,false));
+      func := TFunc(FindPropName(['max','min','avg','sum','count'],FunctionName));
       if ord(func)<0 then begin
         InternalLog('%.EngineList: unexpected function %() in [%]',
           [ClassType,FunctionName,SQL],sllError);
@@ -1332,8 +1332,8 @@ begin // same logic as in TSQLRestStorageInMemory.EngineList()
           Res := fCollection.FindBSON(Query,Projection,limit,Stmt.Offset);
           MS := TRawByteStringStream.Create;
           try
-            W := fStoredClassRecordProps.CreateJSONWriter(
-              MS,ForceAJAX or (Owner=nil) or not Owner.NoAJAXJSON,withID,bits,0);
+            W := fStoredClassRecordProps.CreateJSONWriter(MS,
+              ForceAJAX or (Owner=nil) or not Owner.NoAJAXJSON,withID,bits,0);
             try
               ResCount := GetJSONValues(Res,extFieldNames,W);
               result := MS.DataString;

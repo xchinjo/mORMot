@@ -98,6 +98,7 @@ unit SynLog;
     values, and TSynMapFile.AbsoluteToOffset(), as reported by [0aeaa1353149]
   - introduced ISynLogCallback and TSynLogCallbacks types for easy integration
     with mORMot's interface-based services real-time notification
+  - FPC compatibility - with source lines if compiled using -g or -gl switches
 
 *)
 
@@ -458,8 +459,8 @@ type
     fLocalTimestamp: boolean;
     fWithUnitName: boolean;
     fNoFile: boolean;
-    {$ifdef MSWINDOWS}
     fAutoFlush: cardinal;
+    {$ifdef MSWINDOWS}
     fNoEnvironmentVariable: boolean;
     {$endif}
     {$ifndef NOEXCEPTIONINTERCEPT}
@@ -481,9 +482,7 @@ type
     fRotateFileSize: cardinal;
     fRotateFileAtHour: integer;
     function CreateSynLog: TSynLog;
-    {$ifdef MSWINDOWS}
     procedure SetAutoFlush(TimeOut: cardinal);
-    {$endif}
     procedure SetDestinationPath(const value: TFileName);
     procedure SetLevel(aLevel: TSynLogInfos);
     procedure SynLogFileListEcho(const aEvent: TOnTextWriterEcho; aEventAdd: boolean);
@@ -625,7 +624,6 @@ type
     // - unit name is available from RTTI if the class has published properties
     // - set to TRUE by default, for better debugging experience
     property WithUnitName: boolean read fWithUnitName write fWithUnitName;
-    {$ifdef MSWINDOWS}
     /// the time (in seconds) after which the log content must be written on
     // disk, whatever the current content size is
     // - by default, the log file will be written for every 4 KB of log (see
@@ -635,6 +633,7 @@ type
     // and will be responsible of flushing all pending log content every
     // period of time (e.g. every 10 seconds)
     property AutoFlushTimeOut: cardinal read fAutoFlush write SetAutoFlush;
+    {$ifdef MSWINDOWS}
     /// force no environment variables to be written to the log file
     // - may be usefull if they contain some sensitive information
     property NoEnvironmentVariable: boolean read fNoEnvironmentVariable write fNoEnvironmentVariable;
@@ -796,7 +795,9 @@ type
     procedure AddMemoryStats; virtual;
     {$endif}
     procedure AddErrorMessage(Error: cardinal);
+    {$ifndef FPC}
     procedure AddStackTrace(Stack: PPtrUInt);
+    {$endif}
     procedure ComputeFileName; virtual;
     function GetFileSize: Int64; virtual;
     procedure PerformRotation; virtual;
@@ -1025,7 +1026,7 @@ type
     property GenericFamily: TSynLogFamily read fFamily;
   end;
 
-  /// reference-counted block code critical section with context logging 
+  /// reference-counted block code critical section with context logging
   // - race conditions are difficult to track: you could use this TAutoLockerDebug
   // instead of plain TAutoLocker class, to log some information at each
   // Enter/Leave process, and track unexpected blocking issues
@@ -1105,11 +1106,9 @@ type
     fHost, fUser, fCPU, fOSDetailed, fFramework: RawUTF8;
     fExeDate: TDateTime;
     fIntelCPU: TIntelCpuFeatures;
-    {$ifdef MSWINDOWS}
     fOS: TWindowsVersion;
     fOSServicePack: integer;
     fWow64: boolean;
-    {$endif}
     fStartDateTime: TDateTime;
     fDayCurrent: Int64; // as PInt64('20160607')^
     fDayChangeIndex: TIntegerDynArray;
@@ -1244,14 +1243,14 @@ type
     /// the computer CPU in which the process was running on
     // - returns e.g. '1*0-15-1027'
     property CPU: RawUTF8 read fCPU;
-    {$ifdef MSWINDOWS}
     /// the computer Operating System in which the process was running on
+    // - equals wUnknown on Linux or BSD - use DetailedOS instead
     property OS: TWindowsVersion read fOS;
     /// the Operating System Service Pack number
+    // - not defined on Linux or BSD - use DetailedOS instead
     property ServicePack: integer read fOSServicePack;
     /// if the 32 bit process was running under WOW 64 virtual emulation
     property Wow64: boolean read fWow64;
-    {$endif MSWINDOWS}
     /// the computer Operating System in which the process was running on
     // - returns e.g. '2.3=5.1.2600' for Windows XP
     // - under Linux, it will return the full system version, e.g.
@@ -1417,14 +1416,14 @@ const
   // sllLastError, sllException, sllExceptionOS, sllMemory, sllStackTrace,
   ssNotice, ssDebug, ssDebug, ssDebug, ssDebug, ssDebug, ssDebug, ssDebug,
   // sllFail, sllSQL, sllCache, sllResult, sllDB, sllHTTP, sllClient, sllServer,
-  ssDebug, ssDebug, ssDebug, 
+  ssDebug, ssDebug, ssDebug,
   // sllServiceCall, sllServiceReturn, sllUserAuth,
   ssDebug, ssDebug, ssDebug, ssDebug, ssNotice,
   // sllCustom1, sllCustom2, sllCustom3, sllCustom4, sllNewRun,
   ssWarn, ssInfo, ssDebug);
   // sllDDDError, sllDDDInfo, sllMonitoring);
 
-  
+
 /// returns the trimmed text value of a logging level
 // - i.e. 'Warning' for sllWarning
 function ToText(event: TSynLogInfo): RawUTF8; overload;
@@ -1462,6 +1461,8 @@ type
     Context: TSynLogExceptionContext;
     /// associated Exception.Message content (if any)
     Message: string;
+    /// ready-to-be-displayed text of the exception address
+    Addr: RawUTF8;
   end;
   /// storage of the information associated with one or several exceptions
   // - as returned by GetLastExceptions() function
@@ -1484,7 +1485,7 @@ function GetLastExceptions(Depth: integer=0): variant; overload;
 {$endif}
 
 /// convert low-level exception information into some human-friendly text
-function ToText(const info: TSynLogExceptionInfo): RawUTF8; overload;
+function ToText(var info: TSynLogExceptionInfo): RawUTF8; overload;
 
 
 /// a TSynLogArchiveEvent handler which will delete older .log files
@@ -1584,7 +1585,7 @@ begin
     L := FromVarUInt32(P); // inlined R.Read(S^.Name)
     SetString(S^.Name,PAnsiChar(P),L);
     inc(P,L);
-    inc(PtrUInt(S),A.ElemSize);
+    inc(PtrUInt(S),A.ElemSize); // may be TSynMapSymbol or TSynMapUnit
   end;
   S := A.Value^;
   Addr := FromVarUInt32(P);
@@ -1602,13 +1603,6 @@ end;
 const
   /// Delphi linker starts the code section at this fixed offset
   CODE_SECTION = $1000;
-
-{$ifdef UNICODE}
-{ due to a bug in Delphi 2009+, we need to fake inheritance of record,
-  since TDynArrayHashed = object(TDynArray) fails to initialize
-  http://blog.synopse.info/post/2011/01/29/record-and-object-issue-in-Delphi-2010 }
-{$define UNDIRECTDYNARRAY}
-{$endif}
 
 constructor TSynMapFile.Create(const aExeName: TFileName=''; MabCreate: boolean=true);
 
@@ -1898,7 +1892,7 @@ begin
   S := A.Value^;
   for i := 0 to n-1 do begin
     W.Write(S^.Name);
-    inc(PtrUInt(S),A.ElemSize);
+    inc(PtrUInt(S),A.ElemSize); // may be TSynMapSymbol or TSynMapUnit
   end;
   S := A.Value^;
   Diff := S^.Start;
@@ -1993,36 +1987,36 @@ begin
 end;
 
 procedure TSynMapFile.SaveToExe(const aExeName: TFileName);
-var FN: TFileName;
-    MS, MAB: TMemoryStream;
-    Len, LenMAB: PtrUInt;
+var mabfilename: TFileName;
+    exe, mab: TMemoryStream;
+    exesize, mabsize: PtrUInt;
 begin
   if not FileExists(aExeName) then
     exit;
-  FN := SaveToFile(ChangeFileExt(aExeName,'.mab'));
+  mabfilename := SaveToFile(ChangeFileExt(aExeName,'.mab'));
   try
-    MS := THeapMemoryStream.Create;
-    MAB := THeapMemoryStream.Create;
+    exe := THeapMemoryStream.Create;
+    mab := THeapMemoryStream.Create;
     try
       // load both files
-      MAB.LoadFromFile(FN);
-      LenMAB := MAB.Size;
-      MS.LoadFromFile(aExeName);
-      Len := MS.Size;
-      if Len<16 then
+      mab.LoadFromFile(mabfilename);
+      mabsize := mab.Size;
+      exe.LoadFromFile(aExeName);
+      exesize := exe.Size;
+      if exesize<16 then
         exit;
       // trim existing mab content
-      Len := StreamSynLZComputeLen(MS.Memory,Len,MAGIC_MAB);
+      exesize := StreamSynLZComputeLen(exe.Memory,exesize,MAGIC_MAB);
+      exe.Size := exesize+mabsize;
       // append mab content to exe
-      MS.Size := Len+LenMAB;
-      MoveFast(MAB.Memory^,PAnsiChar(MS.Memory)[Len],LenMAB);
-      MS.SaveToFile(aExeName);
+      MoveFast(mab.Memory^,PAnsiChar(exe.Memory)[exesize],mabsize);
+      exe.SaveToFile(aExeName);
     finally
-      MAB.Free;
-      MS.Free;
+      mab.Free;
+      exe.Free;
     end;
   finally
-    DeleteFile(FN);
+    DeleteFile(mabfilename);
   end;
 end;
 
@@ -2240,16 +2234,19 @@ threadvar
 /// if defined, will use AddVectoredExceptionHandler() API call
 // - this one does not produce accurate stack trace by now, and is supported
 // only since Windows XP
-// - so default method using RTLUnwindProc should be prefered
+// - so default method using RTLUnwindProc should be prefered with Delphi
 {.$define WITH_VECTOREXCEPT}
 
-function ToText(const info: TSynLogExceptionInfo): RawUTF8;
+function ToText(var info: TSynLogExceptionInfo): RawUTF8;
 begin
   with info.Context do
-    if ELevel<>sllNone then
-      FormatUTF8('% % at %: % [%]',[LogInfoCaption[ELevel],EClass,
-        GetInstanceMapFile.FindLocation(EAddr),DateTimeToIso8601Text(
-        UnixTimeToDateTime(ETimestamp),' '),StringToUTF8(info.Message)],result) else
+    if ELevel<>sllNone then begin
+      if info.Addr='' then
+        info.Addr := GetInstanceMapFile.FindLocation(EAddr);
+      FormatUTF8('% % at %: % [%]',[LogInfoCaption[ELevel],EClass,info.Addr,
+        DateTimeToIso8601Text(UnixTimeToDateTime(ETimestamp),' '),
+        StringToUTF8(info.Message)],result);
+    end else
       result := '';
 end;
 
@@ -2260,6 +2257,21 @@ begin
     result := ToText(info) else
     result := '';
 end;
+
+{$ifndef NOVARIANTS}
+function GetLastExceptions(Depth: integer): variant;
+var info: TSynLogExceptionInfoDynArray;
+    i: integer;
+begin
+  VarClear(result);
+  GetLastExceptions(info,Depth);
+  if info=nil then
+    exit;
+  TDocVariantData(result).InitFast(length(info),dvArray);
+  for i := 0 to high(info) do
+    TDocVariantData(result).AddItemText(ToText(info[i]));
+end;
+{$endif}
 
 function SyslogMessage(facility: TSyslogFacility; severity: TSyslogSeverity;
   const msg, procid, msgid: RawUTF8; destbuffer: PUTF8Char; destsize: integer;
@@ -2320,7 +2332,7 @@ begin
   inc(destbuffer);
   len := length(msg);
   P := pointer(msg);
-  if trimmsgfromlog and (len>27) then 
+  if trimmsgfromlog and (len>27) then
     if (P[0]='2') and (P[8]=' ') then begin
       inc(P,27); // trim e.g. '20160607 06442255  ! trace '
       dec(len,27);
@@ -2343,21 +2355,6 @@ begin
   inc(result,len);
 end;
 
-{$ifndef NOVARIANTS}
-function GetLastExceptions(Depth: integer): variant;
-var info: TSynLogExceptionInfoDynArray;
-    i: integer;
-begin
-  VarClear(result);
-  GetLastExceptions(info,Depth);
-  if info=nil then
-    exit;
-  TDocVariantData(result).InitFast(length(info),dvArray);
-  for i := 0 to high(info) do
-    TDocVariantData(result).AddItemText(ToText(info[i]));
-end;
-{$endif}
-
 {$ifdef NOEXCEPTIONINTERCEPT}
 
 function GetLastException(out info: TSynLogExceptionInfo): boolean;
@@ -2371,6 +2368,28 @@ begin
 end;
 
 {$else}
+
+{$ifdef DELPHI5OROLDER}
+  {$define WITH_PATCHEXCEPT}
+{$endif}
+
+{$ifdef KYLIX3}
+  // Kylix has a totally diverse exception scheme
+  {$define WITH_MAPPED_EXCEPTIONS}
+{$endif}
+
+{$ifdef FPC}
+  {$ifdef WIN64}
+    {$define WITH_VECTOREXCEPT} // use AddVectoredExceptionHandler Win64 API
+  {$else}
+    // Win32, Linux: intercept via the RaiseProc global variable
+    {$define WITH_RAISEPROC}
+  {$endif}
+{$else}
+  {$ifdef CPU64}
+    {$define WITH_VECTOREXCEPT}
+  {$endif}
+{$endif}
 
 const
   MAX_EXCEPTHISTORY = 15;
@@ -2403,7 +2422,7 @@ procedure GetLastExceptions(out result: TSynLogExceptionInfoDynArray;
 var infos: TSynLogExceptionInfos; // use thread-safe local copy
     index,last,n,i: integer;
 begin
-  if GlobalLastExceptionIndex<0 then 
+  if GlobalLastExceptionIndex<0 then
     exit; // no exception intercepted yet
   EnterCriticalSection(GlobalThreadLock);
   try
@@ -2475,6 +2494,8 @@ procedure SynLogException(const Ctxt: TSynLogExceptionContext);
     end;
   end;
 var SynLog: TSynLog;
+    info: ^TSynLogExceptionInfo;
+    {$ifdef FPC}i: integer;{$endif}
 label adr,fin;
 begin
   {$ifdef CPU64DELPHI} // Delphi<XE6 in System.pas to retrieve x64 dll exit code
@@ -2497,9 +2518,15 @@ begin
     if GlobalLastExceptionIndex=MAX_EXCEPTHISTORY then
       GlobalLastExceptionIndex := 0 else
       inc(GlobalLastExceptionIndex);
-    GlobalLastException[GlobalLastExceptionIndex].Context := Ctxt;
+    info := @GlobalLastException[GlobalLastExceptionIndex];
+    info^.Context := Ctxt;
+    {$ifdef FPC}
+    if @BackTraceStrFunc<>@SysBackTraceStr then
+      ShortStringToAnsi7String(BackTraceStrFunc(pointer(Ctxt.EAddr)),info^.Addr) else
+    {$endif FPC}
+      info^.Addr := '';
     if (Ctxt.ELevel=sllException) and (Ctxt.EInstance<>nil) then begin
-      GlobalLastException[GlobalLastExceptionIndex].Message := Ctxt.EInstance.Message;
+      info^.Message := Ctxt.EInstance.Message;
       if Ctxt.EInstance.InheritsFrom(ESynException) then begin
         ESynException(Ctxt.EInstance).RaisedAt := pointer(Ctxt.EAddr);
         if ESynException(Ctxt.EInstance).CustomLog(SynLog.fWriter,Ctxt) then
@@ -2507,15 +2534,32 @@ begin
         goto adr;
       end;
     end else
-      GlobalLastException[GlobalLastExceptionIndex].Message := '';
+      info^.Message := '';
     if Assigned(DefaultSynLogExceptionToStr) and
        DefaultSynLogExceptionToStr(SynLog.fWriter,Ctxt) then
       goto fin;
 adr:SynLog.fWriter.AddShort(' at ');
+    {$ifdef FPC} // note: BackTraceStrFunc is slower than TSynMapFile.Log
+    with SynLog.fWriter do
+    if @BackTraceStrFunc=@SysBackTraceStr then begin // no debug information
+      AddPointer(Ctxt.EAddr); // write addresses as hexa
+      for i := 0 to Ctxt.EStackCount-1 do
+        if (i=0) or (Ctxt.EStack[i]<>Ctxt.EStack[i-1]) then begin
+          Add(' ');
+          AddPointer(Ctxt.EStack[i]);
+        end;
+    end else begin
+      AddString(info^.Addr);
+      for i := 0 to Ctxt.EStackCount-1 do
+        if (i=0) or (Ctxt.EStack[i]<>Ctxt.EStack[i-1]) then
+          AddShort(BackTraceStrFunc(pointer(Ctxt.EStack[i])));
+    end;
+    {$else}
     TSynMapFile.Log(SynLog.fWriter,Ctxt.EAddr,true);
     {$ifndef WITH_VECTOREXCEPT} // stack frame OK for RTLUnwindProc by now
     SynLog.AddStackTrace(Ctxt.EStack);
     {$endif}
+    {$endif FPC}
 fin:SynLog.fWriter.AddEndOfLine(SynLog.fCurrentLevel);
     SynLog.fWriter.FlushToStream; // we expect exceptions to be available on disk
   finally
@@ -2523,19 +2567,6 @@ fin:SynLog.fWriter.AddEndOfLine(SynLog.fCurrentLevel);
     LeaveCriticalSection(GlobalThreadLock);
   end;
 end;
-
-{$ifdef CPU64}
-  {$define WITH_VECTOREXCEPT}
-{$endif}
-
-{$ifdef DELPHI5OROLDER}
-  {$define WITH_PATCHEXCEPT}
-{$endif}
-
-{$ifdef KYLIX3}
-  // Kylix has a totally diverse exception scheme
-  {$define WITH_MAPPED_EXCEPTIONS}
-{$endif}
 
 {$ifdef WITH_PATCHEXCEPT}
 
@@ -2680,6 +2711,7 @@ begin
             Ctxt.ELevel := sllException;
           end;
           Ctxt.EStack := nil;
+          Ctxt.EStackCount := 0;
           Ctxt.ETimestamp := UnixTimeUTC; // very fast API call
           SynLogException(Ctxt);
         end;
@@ -2694,8 +2726,10 @@ begin
     result := false;
 end;
 
-{$else} // "regular" exception handling as defined in System.pas
+{$else}
 
+{$ifndef WITH_RAISEPROC}
+// "regular" exception handling as defined in System.pas
 type
   PExceptionRecord = ^TExceptionRecord;
   TExceptionRecord = record
@@ -2712,9 +2746,12 @@ type
 
 const
   cDelphiExcept = $0EEDFAE0;
-  cDelphiException = $0EEDFADE;
+  cDelphiException = {$ifdef FPC}$E0465043{$else}$0EEDFADE{$endif};
+{$endif WITH_RAISEPROC}
+{$endif WITH_MAPPED_EXCEPTIONS}
 
 {$ifdef MSWINDOWS}
+const
   // see http://msdn.microsoft.com/en-us/library/xcb2z8hs
   cSetThreadNameException = $406D1388;
 
@@ -2769,16 +2806,18 @@ begin // avoid linking of ComObj.pas just for EOleSysError
       result := true;
       exit;
     end else begin
+      {$ifdef FPC}
+      E := E.ClassParent;
+      {$else}
       E := PPointer(PtrInt(E)+vmtParent)^;
       if E<>nil then
         E := PPointer(E)^;
+      {$endif}
     end;
   result := false;
 end;
 
 {$endif MSWINDOWS}
-
-{$endif WITH_MAPPED_EXCEPTIONS}
 
 function InternalDefaultSynLogExceptionToStr(
   WR: TTextWriter; const Context: TSynLogExceptionContext): boolean;
@@ -2811,7 +2850,8 @@ begin
       WR.AddShort('")');
     end else
        WR.WriteObject(Context.EInstance);
-  end else begin
+  end else
+  if Context.ECode<>0 then begin
     WR.AddShort(' (');
     WR.AddPointer(Context.ECode);
     WR.AddShort(')');
@@ -2819,11 +2859,35 @@ begin
   result := false; // caller should append "at EAddr" and the stack trace
 end;
 
+{$ifdef WITH_RAISEPROC}
+var
+  OldRaiseProc : TExceptProc;
+
+procedure SynRaiseProc(Obj: TObject; Addr: CodePointer; FrameCount: Longint; Frame: PCodePointer);
+var Ctxt: TSynLogExceptionContext;
+    LastError: DWORD;
+begin
+  if GlobalCurrentHandleExceptionSynLog<>nil then
+    if (Obj<>nil) and (Obj.InheritsFrom(Exception)) then begin
+      LastError := GetLastError;
+      Ctxt.EClass := PPointer(Obj)^;
+      Ctxt.EInstance := Exception(Obj);
+      Ctxt.EAddr := PtrUInt(Addr);
+      if Obj.InheritsFrom(EExternal) then
+        Ctxt.ELevel := sllExceptionOS else
+        Ctxt.ELevel := sllException;
+      Ctxt.ETimestamp := UnixTimeUTC;
+      Ctxt.EStack := pointer(Frame);
+      Ctxt.EStackCount := FrameCount;
+      SynLogException(Ctxt);
+      SetLastError(LastError); // SynLogException() above may have changed this
+    end;
+  if Assigned(OldRaiseProc) then
+    OldRaiseProc(Obj, Addr, FrameCount, Frame);
+end;
+{$else}
 {$ifndef WITH_PATCHEXCEPT}
-
-{$ifdef WITH_MAPPED_EXCEPTIONS}
-
-{$else NO WITH_MAPPED_EXCEPTIONS}
+{$ifndef WITH_MAPPED_EXCEPTIONS}
 
 procedure LogExcept(stack: PPtrUInt; const Exc: TExceptionRecord);
 var Ctxt: TSynLogExceptionContext;
@@ -2853,6 +2917,7 @@ begin
     Ctxt.EAddr := Exc.ExceptionAddress;
   end;
   Ctxt.EStack := stack;
+  Ctxt.EStackCount := 0;
   Ctxt.ETimestamp := UnixTimeUTC; // fast API call
   SynLogException(Ctxt);
   SetLastError(LastError); // code above could have changed this
@@ -2899,10 +2964,9 @@ asm
 end;
 
 {$endif WITH_VECTOREXCEPT}
-
 {$endif WITH_MAPPED_EXCEPTIONS}
-
 {$endif WITH_PATCHEXCEPT}
+{$endif WITH_RAISEPROC}
 
 {$endif NOEXCEPTIONINTERCEPT}
 
@@ -2946,9 +3010,14 @@ begin
       {$ifdef WITH_PATCHEXCEPT}
       PatchCallRtlUnWind;
       {$else}
+      {$ifdef WITH_RAISEPROC}
+      OldRaiseProc := RaiseProc;
+      RaiseProc := @SynRaiseProc;
+      {$else}
       oldUnWindProc := RTLUnwindProc;
       RTLUnwindProc := @SynRtlUnwind;
-      {$endif}
+      {$endif WITH_RAISEPROC}
+      {$endif WITH_PATCHEXCEPT}
       {$endif WITH_VECTOREXCEPT}
       {$endif WITH_MAPPED_EXCEPTIONS}
     end;
@@ -3014,59 +3083,111 @@ begin
   end;
 end;
 
-{$ifdef MSWINDOWS}
-
 var
-  AutoFlushThread: THandle = 0;
   AutoFlushSecondElapsed: cardinal;
 
-procedure AutoFlushProc(P: pointer); stdcall;  // TThread not needed here
+{$ifdef MSWINDOWS}
+  {$define AUTOFLUSHRAWWIN}
+  // if defined, will use direct Windows API calls
+{$endif}
+
+{$ifdef AUTOFLUSHRAWWIN}
+var
+  AutoFlushThread: pointer;
+  
+procedure AutoFlushProc(P: pointer); stdcall;
+  function Terminated: boolean;
+  begin
+    result :=  AutoFlushThread=nil;
+  end;
+{$else}
+type
+  // cross-platform / cross-compiler TThread-based flush
+  TAutoFlushThread = class(TThread)
+  protected
+    fEvent: TEvent;
+    procedure Execute; override;
+  public
+    constructor Create; reintroduce;
+    destructor Destroy; override;
+  end;
+
+var
+  AutoFlushThread: TAutoFlushThread;
+
+constructor TAutoFlushThread.Create;
+begin
+  FreeOnTerminate := true;
+  fEvent := TEvent.Create(nil,false,false,'');
+  inherited Create(false);
+end;
+
+destructor TAutoFlushThread.Destroy;
+begin
+  inherited Destroy;
+  fEvent.Free;
+end;
+
+procedure TAutoFlushThread.Execute;
+{$endif}
 var i: integer;
 begin
   SetThreadNameDefault(GetCurrentThreadID,'SynLog AutoFlushProc');
-  repeat
-    for i := 1 to 10 do begin // check every second for pending data
-      SleepHiRes(100);
-      if AutoFlushThread=0 then begin // check if terminated
-        ExitThread(0);
-        exit; // avoid GPF
+  try
+    repeat
+      {$ifdef AUTOFLUSHRAWWIN} // check every second for pending data
+      for i := 1 to 10 do begin
+        SleepHiRes(100);
+        if Terminated then
+          exit; // avoid GPF
       end;
-    end;
-    if SynLogFileList=nil then
-      continue; // nothing to flush
-    inc(AutoFlushSecondElapsed);
-    SynLogFileList.Safe.Lock;
-    try
-      for i := 0 to SynLogFileList.Count-1 do
-      with TSynLog(SynLogFileList.List[i]) do
-        if AutoFlushThread=0 then
-          break else // avoid GPF
-        if (fFamily.fAutoFlush<>0) and (fWriter<>nil) and
-           (AutoFlushSecondElapsed mod fFamily.fAutoFlush=0) then
-          if fWriter.PendingBytes>1 then begin
-            if not IsMultiThread then
-              if not fWriterStream.InheritsFrom(TFileStream) then
-                IsMultiThread := true; // only TFileStream is thread-safe
-            Flush(false); // write pending data
-          end;
-     finally
-       SynLogFileList.Safe.UnLock;
-     end;
-  until false;
-  ExitThread(0);
-end;
-
-procedure TSynLogFamily.SetAutoFlush(TimeOut: cardinal);
-var ID: cardinal;
-begin
-  fAutoFlush := TimeOut;
-  if (AutoFlushThread=0) and (TimeOut<>0) {$ifndef FPC}and (DebugHook=0){$endif} then begin
-    AutoFlushThread := CreateThread(nil,0,@AutoFlushProc,nil,0,ID);
-    AutoFlushSecondElapsed := 0;
+      {$else}
+      FixedWaitFor(fEvent, 1000);
+      if Terminated then
+        exit;
+      {$endif}
+      if SynLogFileList=nil then
+        continue; // nothing to flush
+      inc(AutoFlushSecondElapsed);
+      SynLogFileList.Safe.Lock;
+      try
+        for i := 0 to SynLogFileList.Count-1 do
+        with TSynLog(SynLogFileList.List[i]) do
+          if Terminated then
+            break else // avoid GPF
+          if (fFamily.fAutoFlush<>0) and (fWriter<>nil) and (fWriter.PendingBytes>1) and
+             (AutoFlushSecondElapsed mod fFamily.fAutoFlush=0) then begin
+              {$ifdef AUTOFLUSHRAWWIN}
+              if not IsMultiThread then
+                if not fWriterStream.InheritsFrom(TFileStream) then
+                  IsMultiThread := true; // only TFileStream is thread-safe
+              {$endif}
+              Flush(false); // write pending data
+            end;
+       finally
+         SynLogFileList.Safe.UnLock;
+       end;
+    until Terminated;
+  finally
+    {$ifdef AUTOFLUSHRAWWIN}
+    ExitThread(0);
+    {$endif}
   end;
 end;
 
-{$endif}
+procedure TSynLogFamily.SetAutoFlush(TimeOut: cardinal);
+{$ifdef AUTOFLUSHRAWWIN}var ID: cardinal;{$endif}
+begin
+  fAutoFlush := TimeOut;
+  if (AutoFlushThread=nil) and (TimeOut<>0) {$ifndef FPC}and (DebugHook=0){$endif} then begin
+    AutoFlushSecondElapsed := 0;
+    {$ifdef AUTOFLUSHRAWWIN}
+    AutoFlushThread := pointer(CreateThread(nil,0,@AutoFlushProc,nil,0,ID));
+    {$else}
+    AutoFlushThread := TAutoFlushThread.Create;
+    {$endif}
+  end;
+end;
 
 destructor TSynLogFamily.Destroy;
 var SR: TSearchRec;
@@ -3078,10 +3199,13 @@ var SR: TSearchRec;
 begin
   fDestroying := true;
   EchoRemoteStop;
-  {$ifdef MSWINDOWS}
-  if AutoFlushThread<>0 then
-    AutoFlushThread := 0; // mark thread released to avoid GPF in AutoFlushProc
-  {$endif}
+  if AutoFlushThread<>nil then begin
+    {$ifndef AUTOFLUSHRAWWIN}
+    AutoFlushThread.Terminate;
+    AutoFlushThread.fEvent.SetEvent; // notify Execute to finish now
+    {$endif}
+    AutoFlushThread := nil; // Terminated=true to avoid GPF in AutoFlushProc
+  end;
   ExceptionIgnore.Free;
   try
     if Assigned(OnArchive) then
@@ -3124,9 +3248,9 @@ begin
       end;
     end;
   finally
-    {$ifdef MSWINDOWS}
-    if AutoFlushThread<>0 then
-      CloseHandle(AutoFlushThread); // release background thread once for all
+    {$ifdef AUTOFLUSHRAWWIN} // release background thread once for all
+    if AutoFlushThread<>nil then
+      CloseHandle(THandle(AutoFlushThread));
     {$endif}
     inherited;
   end;
@@ -3236,34 +3360,37 @@ begin
           if log.Writer.Stream.InheritsFrom(TFileStream) then begin
             stream := TFileStream(log.Writer.Stream);
             endpos := stream.Position;
-            if endpos>MAXPREVIOUSCONTENTSIZE then 
-              len := MAXPREVIOUSCONTENTSIZE else
-              len := MaximumKB shl 10;
-            start := log.fStreamPositionAfterHeader;
-            if (len<>0) and (endpos-start>len) then begin
-              start := endpos-len;
-              stream.Position := start;
+            try
+              if endpos>MAXPREVIOUSCONTENTSIZE then
+                len := MAXPREVIOUSCONTENTSIZE else
+                len := MaximumKB shl 10;
+              start := log.fStreamPositionAfterHeader;
+              if (len<>0) and (endpos-start>len) then begin
+                start := endpos-len;
+                stream.Position := start;
+                repeat
+                  inc(start)
+                until (stream.Read(c,1)=0) or (c=#13);
+              end else
+                stream.Position := start;
+              len := endpos-start;
+              SetLength(result,len);
+              P := pointer(result);
+              total := 0;
               repeat
-                inc(start)
-              until (stream.Read(c,1)=0) or (c=#13);
-            end else
-              stream.Position := start;
-            len := endpos-start;
-            SetLength(result,len);
-            P := pointer(result);
-            total := 0;
-            repeat
-              read := stream.Read(P^,len);
-              if read<=0 then begin
-                if total<>len then
-                  SetLength(result,total); // truncate on read error
-                break;
-              end;
-              inc(P,read);
-              dec(len,read);
-              inc(total,read);
-            until len=0;
-            stream.Position := endpos;
+                read := stream.Read(P^,len);
+                if read<=0 then begin
+                  if total<>len then
+                    SetLength(result,total); // truncate on read error
+                  break;
+                end;
+                inc(P,read);
+                dec(len,read);
+                inc(total,read);
+              until len=0;
+            finally
+              stream.Position := endpos;
+            end;
           end;
         finally
           LeaveCriticalSection(GlobalThreadLock);
@@ -3291,12 +3418,18 @@ const
 
 procedure TSynLog.GetThreadContextInternal;
 var secondpass: boolean;
+    id, hash: PtrUInt;
 begin // should match TSynLog.ThreadContextRehash
   if fFamily.fPerThreadLog<>ptNoThreadProcess then begin
     secondpass := false;
-    fThreadLastHash := PtrUInt(fThreadID xor (fThreadID shr MAXLOGTHREADBITS)
-      xor (fThreadID shr (MAXLOGTHREADBITS*2))) and (MAXLOGTHREAD-1);
-    fThreadIndex := fThreadHash[fThreadLastHash];
+    id := PtrUInt(fThreadID); // TThreadID  = ^TThreadRec under BSD
+    hash := 0; // efficient TThreadID hash on all architectures
+    repeat
+      hash := hash xor (id and (MAXLOGTHREAD-1));
+      id := id shr (MAXLOGTHREADBITS-1); // -1 for less collisions under Linux
+    until id=0;
+    fThreadIndex := fThreadHash[hash];
+    fThreadLastHash := hash;
     if fThreadIndex<>0 then
       repeat
         fThreadContext := @fThreadContexts[fThreadIndex-1];
@@ -3330,42 +3463,49 @@ begin // should match TSynLog.ThreadContextRehash
 end;
 
 procedure TSynLog.ThreadContextRehash;
-var i, id, hash: integer;
+var i: integer;
+    id, hash: PtrUInt;
     secondpass: boolean;
+    ctxt: ^TSynLogThreadContext;
 begin // should match TSynLog.GetThreadContextInternal
   if fFamily.fPerThreadLog=ptNoThreadProcess then
     exit;
   FillcharFast(fThreadHash[0],MAXLOGTHREAD*sizeof(fThreadHash[0]),0);
-  for i := 0 to fThreadContextCount-1 do begin
-    id := fThreadContexts[i].ID;
-    if id=0 then
-      continue; // empty slot
-    hash := PtrUInt(id xor (id shr MAXLOGTHREADBITS)
-      xor (id shr (MAXLOGTHREADBITS*2))) and (MAXLOGTHREAD-1);
-    secondpass := false;
-    repeat
-      if fThreadHash[hash]=0 then
-        break;
-      // hash collision (no need to check the ID here)
-      if hash=MAXLOGTHREAD-1 then
-        if secondpass then // avoid endless loop
-          break else begin
-          hash := 0;
-          secondpass := true;
-        end else
-        inc(hash);
-    until false;
-    fThreadHash[hash] := i+1;
+  ctxt := pointer(fThreadContexts);
+  for i := 1 to fThreadContextCount do begin
+    id := PtrUInt(ctxt^.ID); // TThreadID  = ^TThreadRec under BSD
+    if id<>0 then begin // not empty slot
+      hash := 0; // efficient TThreadID hash on all architectures
+      repeat
+        hash := hash xor (id and (MAXLOGTHREAD-1));
+        id := id shr (MAXLOGTHREADBITS-1); // -1 for less collisions under Linux
+      until id=0;
+      secondpass := false;
+      repeat
+        if fThreadHash[hash]=0 then
+          break;
+        // hash collision (no need to check the ID here)
+        if hash=MAXLOGTHREAD-1 then
+          if secondpass then // avoid endless loop
+            break else begin
+            hash := 0;
+            secondpass := true;
+          end else
+          inc(hash);
+      until false;
+      fThreadHash[hash] := i;
+    end;
+    inc(ctxt);
   end;
 end;
 
 procedure TSynLog.LockAndGetThreadContext;
-var ID: TThreadID;
+var id: TThreadID;
 begin
   EnterCriticalSection(GlobalThreadLock);
-  ID := TThreadID(GetCurrentThreadId);
-  if ID<>fThreadID then begin
-    fThreadID := ID;
+  id := GetCurrentThreadId;
+  if id<>fThreadID then begin
+    fThreadID := id;
     GetThreadContextInternal;
   end;
   {$ifndef NOEXCEPTIONINTERCEPT} // for IsBadCodePtr() or any internal exception
@@ -3555,10 +3695,8 @@ begin
   EnterCriticalSection(GlobalThreadLock);
   try
     fWriter.FlushToStream;
-    {$ifdef MSWINDOWS}
     if ForceDiskWrite and fWriterStream.InheritsFrom(TFileStream) then
       FlushFileBuffers(TFileStream(fWriterStream).Handle);
-    {$endif}
   finally
     LeaveCriticalSection(GlobalThreadLock);
   end;
@@ -3764,7 +3902,7 @@ const LOGCOLORS: array[TSynLogInfo] of TConsoleColor = (
 //    sllServiceCall, sllServiceReturn, sllUserAuth,
   ccLightMagenta, ccLightMagenta, ccMagenta,
 //    sllCustom1, sllCustom2, sllCustom3, sllCustom4,
-  ccLightRed, ccYellow,ccLightMagenta,ccLightGreen,
+  ccLightGray, ccLightGray,ccLightGray,ccLightGray,
 //    sllNewRun, sllDDDError, sllDDDInfo, sllMonitoring
   ccLightMagenta, ccLightRed, ccWhite, ccLightBlue);
 begin
@@ -3897,8 +4035,8 @@ end;
 
 {$STACKFRAMES ON}
 procedure TSynLog.Log(Level: TSynLogInfo);
-var aCaller: PtrUInt;
-    LastError: DWORD;
+var LastError: DWORD;
+    {$ifndef FPC}aCaller: PtrUInt;{$endif}
 begin
   if Level=sllLastError then
     LastError := GetLastError else
@@ -3908,6 +4046,7 @@ begin
   try
     if LastError<>0 then
       AddErrorMessage(LastError);
+    {$ifndef FPC}
     {$ifdef CPU64}
     {$ifdef MSWINDOWS}
     if RtlCaptureStackBackTrace(1,1,@aCaller,nil)=0 then
@@ -3928,6 +4067,7 @@ begin
     {$endif}
     {$endif}
     TSynMapFile.Log(fWriter,aCaller,false);
+    {$endif}
   finally
     LogTrailerUnLock(Level);
     if LastError<>0 then
@@ -3947,7 +4087,10 @@ begin
     OutputDebugStringA(pointer(CurrentAnsiConvert.UTF8ToAnsi(Msg)));
     {$endif}
     {$ifdef LINUX}
-    //write(Msg);
+    {$I-}
+    write(Msg, '  ');
+    ioresult;
+    {$I+}
     {$endif}
   end;
   {$ifndef FPC_OR_PUREPASCAL}
@@ -3980,7 +4123,7 @@ var WithinEvents: boolean;
     P: PUTF8Char;
     L: Integer;
     {$endif}
-    
+
   procedure NewLine;
   begin
     if WithinEvents then begin
@@ -4189,11 +4332,11 @@ begin
   if fFamily.fPerThreadLog=ptIdentifiedInOnFile then
     for i := 0 to fThreadContextCount-1 do
     with fThreadContexts[i] do
-      if (ID<>0) and (ThreadName<>'') then begin // see TSynLog.LogThreadName
+      if (pointer(ID)<>nil) and (ThreadName<>'') then begin // see TSynLog.LogThreadName
         LogCurrentTime;
         fWriter.AddInt18ToChars3(i+1);
         fWriter.AddShort(LOG_LEVEL_TEXT[sllInfo]);
-        fWriter.Add('SetThreadName %=%',[ID,ThreadName],twOnSameLine);
+        fWriter.Add('SetThreadName %=%',[pointer(ID),ThreadName],twOnSameLine);
         fWriter.AddEndOfLine(sllInfo);
       end;
 end;
@@ -4201,8 +4344,10 @@ end;
 procedure TSynLog.LogTrailerUnLock(Level: TSynLogInfo);
 begin
   try
+    {$ifndef FPC}
     if Level in fFamily.fLevelStackTrace then
       AddStackTrace(nil);
+    {$endif}
     fWriter.AddEndOfLine(fCurrentLevel);
     if (fFileRotationNextHour<>0) and (GetTickCount64>=fFileRotationNextHour) then begin
       inc(fFileRotationNextHour,MSecsPerDay);
@@ -4229,7 +4374,8 @@ begin
   try
     if Instance<>nil then
       fWriter.AddInstancePointer(Instance,' ',fFamily.WithUnitName);
-    fWriter.Add(TextFmt,TextArgs,twOnSameLine);
+    fWriter.Add(TextFmt,TextArgs,twOnSameLine,
+      [woDontStoreDefault,woDontStoreEmptyString,woDontStore0,woFullExpand]);
     if LastError<>0 then
       AddErrorMessage(LastError);
   finally
@@ -4322,7 +4468,7 @@ begin
     fFileName := fFileName+' '+ExtractFileName(GetModuleName(HInstance));
   {$endif}
   if fFamily.fPerThreadLog=ptOneFilePerThread then
-    fFileName := fFileName+' '+IntToString(Int64(GetCurrentThreadId));
+    fFileName := fFileName+' '+Ansi7ToString(PointerToHex(pointer(GetCurrentThreadId)));
   fFileName := fFamily.fDestinationPath+fFileName+fFamily.fDefaultExtension;
 end;
 
@@ -4418,8 +4564,8 @@ begin // aLevel = sllEnter,sllLeave or sllNone
           end;
           end;
         end;
-      end else
-        TSynMapFile.Log(fWriter,Caller,false);
+      end {$ifndef FPC} else
+        TSynMapFile.Log(fWriter,Caller,false){$endif};
     end;
     if (aLevel<>sllNone) and (fFrequencyTimestamp<>0) then begin
       if not fFamily.HighResolutionTimestamp then begin
@@ -4442,8 +4588,8 @@ end;
 const
   MINIMUM_EXPECTED_STACKTRACE_DEPTH = 2;
 
-procedure TSynLog.AddStackTrace(Stack: PPtrUInt);
 {$ifndef FPC}
+procedure TSynLog.AddStackTrace(Stack: PPtrUInt);
 {$ifndef CPU64}
 procedure AddStackManual(Stack: PPtrUInt);
   function check2(xret: PtrUInt): Boolean;
@@ -4497,7 +4643,6 @@ begin
   end;
 end;
 {$endif}
-{$endif}
 {$ifdef WITH_MAPPED_EXCEPTIONS}
 begin
   AddStackManual(Stack);
@@ -4538,6 +4683,7 @@ begin
   {$endif MSWINDOWS}
 end;
 {$endif WITH_MAPPED_EXCEPTIONS}
+{$endif FPC}
 
 
 { TAutoLockerDebug }
@@ -4762,9 +4908,7 @@ begin
       exit;
     Split(fCPU,':',fCpu,feat);
     SynCommons.HexToBin(pointer(feat),@fIntelCPU,SizeOf(fIntelCPU));
-    {$ifdef MSWINDOWS}
     fWow64 := aWow64='1';
-    {$endif}
     SetInt64(PBeg,fFreq);
     while (PBeg<PEnd) and (PBeg^>' ') do inc(PBeg);
     if IdemPChar(PBeg,' INSTANCE=') then // only available for a library log
@@ -4784,11 +4928,10 @@ begin
     if PWord(fLines[fHeaderLinesCount])^<>ord('0')+ord('0')shl 8 then // YYYYMMDD -> 20101225 e.g.
       fFreq := 0 else // =0 if date time, >0 if high-resolution time stamp
       fFreqPerDay := fFreq*SecsPerDay;
-    {$ifdef MSWINDOWS} // use only fOSDetailed under Linux
     P := pointer(fOSDetailed);
     fOS := TWindowsVersion(GetNextItemCardinal(P,'.'));
-    fOSServicePack := GetNextItemCardinal(P);
-    {$endif}
+    if fOS<>wUnknown then
+      fOSServicePack := GetNextItemCardinal(P);
     P := fLines[fHeaderLinesCount-2]; // TSQLLog 1.18.2765 ERTL FTS3 2016-07-17T22:38:03
     i := LineSize(fHeaderLinesCount-2)-19; // length('2016-07-17T22:38:03')=19
     if i>0 then begin
@@ -5106,7 +5249,7 @@ begin
   if fThreadInfo=nil then
     exit;
   for i := 1 to fThreadMax do
-    result[i-1] := ThreadName(i,CurrentLogIndex);   
+    result[i-1] := ThreadName(i,CurrentLogIndex);
 end;
 
 procedure TSynLogFile.GetDays(out Days: TDateTimeDynArray);
@@ -5154,7 +5297,7 @@ begin
   if includeFirstColumns then begin
     UTF8DecodeToString(fLines[index],fLineTextOffset,header);
     result := header+result;
-  end;   
+  end;
 end;
 
 procedure TSynLogFile.SetLogProcMerged(const Value: boolean);

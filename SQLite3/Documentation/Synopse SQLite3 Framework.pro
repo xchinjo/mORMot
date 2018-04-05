@@ -750,6 +750,7 @@ Feel free to give your feedback at @http://synopse.info/forum asking new questio
 {\b I am tempted by using an ORM, but {\i mORMot} forces you to inherit from a root {\f1\fs20 @*TSQLRecord@} type, whereas I'd like to use any kind of object.}\line We will discuss this in details @168@. Adding attributes to an existing class is tempting, but will pollute your code at the end, mixing persistence and business logic: see {\i @*Persistence Ignorance@} and {\i @*Aggregates@} @124@. The framework proposes a second level of {\i Object} mapping, allowing to persist any kind of {\i @*PODO@} ({\i Plain Old Delphi Object}), by defining @*CQRS@ services - see @167@.
 {\b Why are you not using the latest features of the compiler, like generics or class attributes?}\line Our ORM does not rely on {\i generics}, but on the power of the object pascal type system: specifying a {\f1\fs20 class} or {\f1\fs20 interface} type as parameter is safe and efficient - and generics tends to blow the executable size, lower down performance (the current RTL is not very optimized, and sometimes bugged), and hide implementation details. Some methods are available for newer version of the compiler, introducing access via generics; but it was not mandatory to depend on them. We also identified, as several Java or C# gurus, that {\f1\fs20 class} attributes may sound like a good idea, but tend to {\i pollute} the code, and introduce unexpected coupling. Last but not least, those features are incompatible with older version of Delphi we would like to support, and may reduce compatibility with @*FPC@.
 {\b I also notice in your SAD doc, data types are different from Delphi. You have {\f1\fs20 RawUTF8}, etc, which make me puzzled, what are they?}\line You can for sure use standard {\i Delphi} {\f1\fs20 string} types, but some more optimized types were defined: since the whole framework is @*UTF-8@ based, we defined a dedicated type, which works with all versions of {\i Delphi}, before and after {\i Delphi} 2009. By the way, just search for {\f1\fs20 RawUTF8} in the {\i keyword index} of this document, or see @32@.
+{\b During my tests, my client receives non standard @*JSON@ with unquoted fields.}\line Internally, the framework uses JSON in {\i MongoDB} @*extended syntax@, i.e. fields are not quoted - this gives better performance and reduces memory and bandwidth with a {\i mORMot} client. To receive {\f1\fs20 "field":value} instead of {\f1\fs20 field:value}, just add a proper {\f1\fs20 @**User-Agent@} HTTP header to the client request (as any browser does), and the server will emit standard JSON.
 {\b When I work with floating points and JSON, sometimes numerical values with more than 4 decimals are converted into JSON strings.}\line By default, {\f1\fs20 double} values are disabled in the JSON serialization, to avoid any hidden precision lost during conversion: see @194@ how to enable it.
 {\b I got an access violation with SynDB ISQLDBRows.}\line You need to explicitly release the {\f1\fs20 ISQLDBRows} instance, by setting it to {\f1\fs20 nil}, {\i before} freeing the owner's connection - see @195@.
 {\b @*Deadlock@ occurs with interface callbacks.}\line When working with asynchronous notifications over {\i WebSockets}, you need to ensure you won't fire directly a callback from a main method execution - see @196@ for several solutions.
@@ -2568,6 +2569,16 @@ Any {\f1\fs20 @*TDateTime@} bound parameter shall better be specified using {\f1
 For {\f1\fs20 @*TTimeLog@ / @*TModTime@ / @*TCreateTime@ / @*TUnixTime@} kind of properties, please use the underlying {\f1\fs20 Int64} value as bound parameter.
 As stated previously, @*BLOB@ (i.e. {\f1\fs20 sftBlob} or {\f1\fs20 @*TSQLRawBlob@}) properties are handled separately, via dedicated {\f1\fs20 RetrieveBlob} and {\f1\fs20 UpdateBlob} method calls (or their global {\f1\fs20 RetrieveBlobFields} / {\f1\fs20 UpdateBlobFields} twins). In fact, BLOB data is expected to be potentially big (more than a few MB). But you can specify a small BLOB content using an explicit conversion to the corresponding TEXT format, by calling {\f1\fs20 @*BinToBase64WithMagic@()} overloaded functions when preparing an UPDATE query, or by defining a {\f1\fs20 TByteDynArray} published field instead of {\f1\fs20 TSQLRawBlob}.\line See also {\f1\fs20 @*ForceBlobTransfert@} and {\f1\fs20 ForceBlobTransfertTable[]} properties of {\f1\fs20 TSQLRestClientURI}.
 Note that there was a {\i breaking change} about the {\f1\fs20 TSQLRecord.Create / FillPrepare  / CreateAndFillPrepare} and {\f1\fs20 TSQLRest.OneFieldValue / MultiFieldValues} methods: for historical reasons, they expected parameters to be marked as {\f1\fs20 %} in the SQL WHERE clause, and inlined via {\f1\fs20 :(...):} as stated @61@ - since revision 1.17 of the framework, those methods expect parameters marked as {\f1\fs20 ?} and with no {\f1\fs20 :(...):}. Due to this {\i breaking change}, user code review is necessary if you want to upgrade the engine from 1.16 or previous. In all cases, using {\f1\fs20 ?} is less confusing for new users, and more close to the usual way of preparing database queries - e.g. as stated @27@. Both {\f1\fs20 TSQLRestClient.ExecuteFmt / ListFmt} methods are not affected by this change, since they are just wrappers to the {\f1\fs20 FormatUTF8()} function.
+For the most complex codes, you may want to prepare ahead the WHERE clause of the ORM request. You may use the overloaded {\f1\fs20 FormatUTF8()} function as such:
+!var where: RawUTF8;
+!begin
+!  where := FormatUTF8('id=?', [], [SomeID]);
+!  if add_active then
+!    where := FormatUTF8('% and active=?', [where], [ActiveFlag]);
+!  if add_date_ini then
+!    where := FormatUTF8('% and date_ini>=?', [where], [DateToSQL(Date-2)]);
+! ...
+Then the request will be easy to create, and fast to execute, thanks to prepared statements in the framework database layer.
 :  Introducing TSQLTableJSON
 As we stated above, {\f1\fs20 [CreateAnd]FillPrepare} / {\f1\fs20 FillOne} methods are implemented via an internal {\f1\fs20 @**TSQLTableJSON@} instance.
 In short, {\f1\fs20 TSQLTableJSON} will expect some {\i @*JSON@} content as input, will parse it in rows and columns, associate it with one or more optional {\f1\fs20 @*TSQLRecord@} class types, then will let you access the data via its {\f1\fs20 Get*} methods.
@@ -6365,13 +6376,13 @@ You can note that {\f1\fs20 FindJSON()} has two properties, which are the {\f1\f
 !  writeln(json);
 Which outputs:
 $[{"_id":5,"Name":"Name 6","Number":5}]
-We used here an overloaded {\f1\fs20 FindJSON()} method, which accept the {\i MongoDB} extended syntax (here, the field name is unquoted), and parameters as variables.
+We used here an overloaded {\f1\fs20 FindJSON()} method, which accept the {\i MongoDB} @*extended syntax@ (here, the field name is unquoted), and parameters as variables.
 We can specify a projection:
 !  json := Coll.FindJSON('{_id:?}',[5],'{Name:1}');
 !  writeln(json);
 Which will only return the "Name" and "_id" fields (since {\f1\fs20 _id} is, by {\i MongoDB} convention, always returned:
 $[{"_id":5,"Name":"Name 6"}]
-To return only the "Name" field, you can specify {\f1\fs20 '{_id:0,Name:1}'} as extended JSON for the {\i projection} parameter.
+To return only the "Name" field, you can specify {\f1\fs20 '{_id:0,Name:1}'} as JSON in @*extended syntax@ for the {\i projection} parameter.
 $[{"Name":"Name 6"}]
 There are other methods able to retrieve data, also directly as BSON binary data. They will be used for best speed e.g. in conjunction with our ORM, but for most end-user code, using {\f1\fs20 TDocVariant} is safer and easier to maintain.
 :   Updating or deleting documents
@@ -8753,9 +8764,10 @@ A corresponding client method may be:
 !  Result := aClient.CallBackGetResult('DataAsHex',[],RecordClass,fID);
 !end;
 If @*authentication@ - see @18@ - is used, the current session, user and group IDs are available in {\f1\fs20 Session / SessionUser / SessionGroup} fields. If authentication is not available, those fields are meaningless: in fact, {\f1\fs20 Ctxt.Context.Session} will contain either 0 ({\f1\fs20 CONST_AUTHENTICATION_SESSION_NOT_STARTED}) if any @*session@ is not yet started, or 1 ({\f1\fs20 CONST_AUTHENTICATION_NOT_USED}) if authentication mode is not active. Server-side implementation can use the {\f1\fs20 TSQLRestServer.SessionGetUser} method to retrieve the corresponding user details (note that when using this method, the returned {\f1\fs20 @*TSQLAuthUser@} instance is a local thread-safe copy which shall be freed when done).
-In {\f1\fs20 Ctxt.Call^} member, you can access low-level communication content, i.e. all incoming and outgoing values, including headers and message body. Depending on the transmission protocol used, you can retrieve e.g. HTTP header information. For instance, here is how you can access the caller remote IP address and client application user agent:
+In {\f1\fs20 Ctxt.Call^} member, you can access low-level communication content, i.e. all incoming and outgoing values, including headers and message body. Depending on the transmission protocol used, you can retrieve e.g. HTTP header information. For instance, here is how you may access the client remote IP address and application {\f1\fs20 @*User-Agent@}, at lowest level:
 ! aRemoteIP := FindIniNameValue(pointer(Ctxt.Call.InHead),'REMOTEIP: ');
 ! aUserAgent := FindIniNameValue(pointer(Ctxt.Call.InHead),'USER-AGENT: ');
+Of course, for those fields, it is much preferred to use the {\f1\fs20 Ctxt.RemoteIP} or {\f1\fs20 Ctxt.UserAgent} properties, which use an efficient cache.
 \page
 :96 Browser speed-up for unmodified requests
 When used over a slow network (e.g. over the Internet), you can set the optional {\f1\fs20 Handle304NotModified} parameter of both {\f1\fs20 Ctxt.Returns()} and {\f1\fs20 Ctxt.Results()} methods to return the response body only if it has changed since last time.
@@ -11006,10 +11018,10 @@ When any {\f1\fs20 exception} is raised in a service method, a {\f1\fs20 TCQRSRe
 !!  CqrsBeginMethod(qaNone,result);
 !  try
 !....
-!    CqrsSetResult(cqrsSuccess);
+!    CqrsSetResult(cqrsSuccess,result);
 !  except
 !!    on E: Exception do
-!!      CqrsSetResult(E,cqrsInternalError);
+!!      CqrsSetResult(E,cqrsInternalError,result);
 !  end;
 !end;
 But such {\f1\fs20 exception} should be {\f1\fs20 exception}al, as we already stated.
@@ -12593,7 +12605,7 @@ If you want to supply the context data as JSON, then render it, you may write:
 !    'Hello {{value.name}}'#13#10'You have just won {{value.value}} dollars!');
 !  html := mustache.RenderJSON('{value:{name:"Chris",value:10000}}');
 !  // now html='Hello Chris'#13#10'You have just won 10000 dollars!'
-Note that here, the JSON is supplied with an @*extended syntax@ (i.e. field names are unquoted), and that {\f1\fs20 TSynMustache} is able to identify a dotted-named variable within the execution context.
+Note that here, the JSON is supplied with {\i MongoDB}-like @*extended syntax@ (i.e. field names are unquoted), and that {\f1\fs20 TSynMustache} is able to identify a dotted-named variable within the execution context.
 As an alternative, you could use the following syntax to create the data context as JSON, with a set of parameters, therefore easier to work with in real code storing data in variables (for instance, any {\f1\fs20 string} variable is quoted as expected by JSON, and converted into @*UTF-8@):
 !  mustache := TSynMustache.Parse(
 !    'Hello {{name}}'#13#10'You have just won {{value}} dollars!');
@@ -16145,7 +16157,7 @@ Therefore, {\f1\fs20 sqlite3.obj} and {\f1\fs20 sqlite3fts.obj} files are availa
 Please download the latest compiled version of these {\f1\fs20 .obj} files from this link. You can also use the supplied {\f1\fs20 c.bat} file to compile from the original {\f1\fs20 sqlite3.c} file available in the repository, if you have the {\f1\fs20 bcc32} C command-line compiler installed.
 The free version works and was used to create both {\f1\fs20 .obj} files, i.e. {\i C++Builder Compiler (bcc compiler) free download} - as available from {\i Embarcadero} web site.
 For native {\i Windows} @*64-bit@ applications (since {\i Delphi} XE2), an external {\f1\fs20 .dll} file is needed. Since there is no official {\i SQLite3} download for {\i Win64} yet, you can use the one we supply at @http://synopse.info/files/SQLite3-64.7z
-For FPC, you need to download static {\f1\fs20 .o} files from @http://synopse.info/files/sqlite3fpc.7z then uncompress all embedded folders at the {\i mORMot} root folder (i.e. where {\f1\fs20 Synopse.inc} and {\f1\fs20 SynCommons.pas} stay). Those static files have been patched to support optional encryption of the {\i SQLite3} database file. Then enable the {\f1\fs20 FPCSQLITE3STATIC} conditional in your project, or directly modify {\f1\fs20 Synopse.inc} to include it, so that those {\f1\fs20 .o} files will be statically linked to the executable.
+For FPC, you need to download static {\f1\fs20 .o} files from @http://synopse.info/files/sqlite3fpc.7z then uncompress the embedded {\f1\fs20 static} folder and its sub-folders at the {\i mORMot} root folder (i.e. where {\f1\fs20 Synopse.inc} and {\f1\fs20 SynCommons.pas} stay). Those {\f1\fs20 static} files have been patched to support optional encryption of the {\i SQLite3} database file. Then enable the {\f1\fs20 FPCSQLITE3STATIC} conditional in your project, or directly modify {\f1\fs20 Synopse.inc} to include it, so that those {\f1\fs20 .o} files will be statically linked to the executable.
 You could also compile the static libraries from the {\f1\fs20 sqlite3.c} source, to run with FPC - do not forget to enable the {\f1\fs20 FPCSQLITE3STATIC} conditional in this case also.\line Under {\i Windows}, ensure the {\i MinGW} compiler is installed, then execute {\f1\fs20 c-fpcmingw.bat} from the {\i SQLite3} folder. It will create the {\f1\fs20 sqlite3.o} and {\f1\fs20 sqlite3fts.o} files, as expected by FPC.\line Under {\i @*Linux@}, Use the {\f1\fs20 c-fpcgcclin.sh} bash script.
 :  SpiderMonkey library
 To enable {\i @*JavaScript@} support in {\i mORmot}, we rely on our version of the {\i @*SpiderMonkey@} library. See @79@.
@@ -16283,7 +16295,7 @@ Download and uncompress the framework archives, including all sub-folders, into 
 |{\b Static 32-bit SQLite3 .obj files}\line\tab @http://synopse.info/files/sqlite3obj.7z \line\tab into {\f1\fs20 D:\\Dev\\Lib\\SQLite3\\}
 |{\b 64-bit SQlite3 library}\line\tab @http://synopse.info/files/SQLite3-64.7z \line\tab into your Win64 {\f1\fs20 .exe} folders
 |{\b 32-bit SpiderMonkey library}\line\tab @http://synopse.info/files/synsm.7z \line\tab into your {\f1\fs20 .exe} folders needing JavaScript
-|{\b for FPC only: static {\f1\fs20 .o} files for Windows or Linux}\line\tab @http://synopse.info/files/sqlite3fpc.7z \line\tab two folders into {\f1\fs20 D:\\Dev\\Lib\\}
+|{\b for FPC only: static {\f1\fs20 .o} files for Windows or Linux}\line\tab @http://synopse.info/files/sqlite3fpc.7z \line\tab whole {\f1\fs20 static} folder into {\f1\fs20 D:\\Dev\\Lib\\}
 |%
 Please, read the {\f1\fs20 ReadMe.txt} file content supplied with the package! RTFM!
 In short, add the following paths to your {\i Delphi} IDE (in {\i Tools/Environment/Library} menu):
@@ -16298,6 +16310,11 @@ Enjoy!
 :125 FreePascal / Lazarus use
 You can use the {\i @**FreePascal@ Compiler} (@**FPC@) to compile the {\i mORMot} framework source code, targetting {\i Windows} and {\i Linux}.
 {\i Linux} is a premium target for cheap and efficient server @75@. Since {\i mORMot} has no dependency, installing a new {\i mORMot} server is as easy as copying its executable on a blank {\i Linux} host, then run it. No need to install any framework nor runtime. You could even use diverse operating systems (several {\i Linux} or {\i Windows Server} versions) in your {\i mORMot} servers farm, with minimal system requirements, and updates.
+For proper FPC compilation, ensure you have the following settings to your project:
+- {\i Other unit files (-Fu)}:\line{\i \f1\fs20 D:\\Dev\\Lib;D:\\Dev\\Lib\\SQLite3;D:\\Dev\\Lib\\SQLite3\\DDD\\infra}
+- {\i Include files (-Fi)}:\line{\i \f1\fs20 $(ProjOutDir);D:\\Dev\\Lib;D:\\Dev\\Lib\\SQLite3}
+- {\i Libraries (-fFl)}:\line{\i \f1\fs20 D:\\Dev\\Lib\\static\\$(TargetCPU)-$(TargetOS)}
+Replace {\f1\fs20 D:\\Dev\\Lib} path by the absolute/relative folder where you did install the framework. In practice, a relative path (e.g. {\f1\fs20 ..\\..\\lib}) is preferred.
 :  Compiler expectations
 You should better use the latest SVN trunk version of the FPC 2.7.1 / 3.1.1 compiler, and the corresponding {\i Lazarus} IDE.
 If you want to use @80@, ensure that your revision includes the fix for @http://mantis.freepascal.org/view.php?id=26773 bug, i.e. newer than revision 28995 from 2014-11-05T22:17:54. This bug has not been fixed in 2.6.4 branch.

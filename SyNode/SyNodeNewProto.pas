@@ -54,13 +54,6 @@ unit SyNodeNewProto;
   ***** END LICENSE BLOCK *****
 
 
-  ---------------------------------------------------------------------------
-   Download the mozjs-45 library at
-     x32: https://unitybase.info/downloads/mozjs-45.zip
-     x64: https://unitybase.info/downloads/mozjs-45-x64.zip
-  ---------------------------------------------------------------------------
-
-
   Version 1.18
   - initial release. Use SpiderMonkey 45
   - added TDateTime conversion as proposed by hsvandrew
@@ -106,7 +99,11 @@ type
     procedure DefineRTTIMethods(aRtype: TRttiType);
     procedure DefinePropOrFld(rTyp: TRttiType; rMember: TRttiMember; aParent: PJSRootedObject);
     function GetJSClass: JSClass; override;
-
+    /// Can be used to optimize JS engine proerty access.
+    // - if isReadonly setted to true property become read-only for JS engine
+    // - if property valu don't changed during object lifecircle set isDeterministic=true
+    //   to prevent creating of JS value every time JS engine read property value
+    // If method return false propery will not be created in the JS
     function GetPropertyAddInformation(cx: PJSContext; rMember: TRttiMember; out isReadonly: boolean;
       out isDeterministic: boolean): boolean; virtual;
   public
@@ -895,7 +892,7 @@ begin
       SetLength(FRTTIPropsCache, idx + 1);
       FRTTIPropsCache[idx].jsName := camelize(StringToAnsi7(rMember.Name));
 
-      // TODO mote the enumerations to global.binding.enums
+      // TODO move the enumerations to global.binding.enums
       // and do not clog the global object
       if (ti.Kind = tkEnumeration)and(ti<>TypeInfo(boolean)) then begin
         Engine.defineEnum(mORMot.PTypeInfo(ti), aParent);

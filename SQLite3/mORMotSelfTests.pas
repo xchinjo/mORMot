@@ -29,7 +29,7 @@ unit mORMotSelfTests;
   the Initial Developer. All Rights Reserved.
 
   Contributor(s):
-  
+
   Alternatively, the contents of this file may be used under the terms of
   either the GNU General Public License Version 2 or later (the "GPL"), or
   the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
@@ -75,18 +75,21 @@ procedure SQLite3ConsoleTests;
 implementation
 
 uses
+  SysUtils,
+  SynCommons,
   {$ifdef MSWINDOWS}
-  Windows, // for AllocConsole
-  {$ifndef DELPHI5OROLDER}
-  SynBigTable,
+    Windows, // for AllocConsole
+    {$ifndef DELPHI5OROLDER}
+      SynBigTable,
+    {$endif}
   {$endif}
-  {$endif}
   {$ifndef DELPHI5OROLDER}
-  mORMot, // for TSQLLog
+    mORMot, // for TSQLLog
   {$endif}
   SynLog,
   SynBidirSock, // for WebSocketLog
   SynTests,
+  SynSQLite3, // for Sqlite3 used version
   SynSelfTests;
 
 type
@@ -96,6 +99,9 @@ type
   // - inherits from TSynTestsLogged in order to create enhanced log information
   // in case of any test case failure
   TTestSynopsemORMotFramework = class(TSynTestsLogged)
+  public
+    /// provide additional information
+    function Run: boolean; override;
   published
     /// test the freeware Synopse library
     // - low level functions and classes, cryptographic or compression routines,
@@ -110,6 +116,15 @@ type
 
 
 { TTestSynopsemORMotFramework }
+
+function TTestSynopsemORMotFramework.Run: boolean;
+begin
+  CustomVersions := format(#13#10#13#10'Run on: %s - codepage=%d'#13#10 +
+    '    %s'#13#10'Using mORMot %s'#13#10'    %s %s',
+    [OSVersionText, GetACP, CpuInfoText, SYNOPSE_FRAMEWORK_FULLVERSION,
+     sqlite3.ClassName, sqlite3.Version]);
+  result := inherited Run;
+end;
 
 procedure TTestSynopsemORMotFramework.SynopseLibraries;
 begin

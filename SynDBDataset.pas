@@ -366,7 +366,7 @@ procedure TSQLDBDatasetStatementAbstract.Prepare(const aSQL: RawUTF8; ExpectResu
 var Log: ISynLog;
     oSQL: RawUTF8;
 begin
-  Log := SynDBLog.Enter(Self);
+  Log := SynDBLog.Enter(Self, 'Prepare');
   //Log.Log(sllCustom1,'ABCSoft --->  #006 TSQLDBDatasetStatementAbstract.Prepare');
   if fPrepared then
     raise ESQLDBDataset.CreateUTF8('%.Prepare() shall be called once',[self]);
@@ -383,8 +383,7 @@ var Log: ISynLog;
     lArrayIndex: integer;
     Field: TField;
 begin
-  Log := SynDBLog.Enter(Self);
-
+  Log := SynDBLog.Enter(Self, 'ExecutePrepared');
   //Log.Log(sllCustom1,'ABCSoft --->  #005 TSQLDBDatasetStatementAbstract.ExecutePrepared');
   inherited ExecutePrepared; // set fConnection.fLastAccessTicks
   with Log.Instance do

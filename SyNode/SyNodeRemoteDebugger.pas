@@ -54,13 +54,6 @@ unit SyNodeRemoteDebugger;
   ***** END LICENSE BLOCK *****
 
 
-  ---------------------------------------------------------------------------
-   Download the mozjs-45 library at
-     x32: https://unitybase.info/downloads/mozjs-45.zip
-     x64: https://unitybase.info/downloads/mozjs-45-x64.zip
-  ---------------------------------------------------------------------------
-
-
   Version 1.18
   - initial release. Use SpiderMonkey 45
 
@@ -129,6 +122,7 @@ type
     fNeedClose: boolean;
     fDebugger: TSMDebugger;
     fCommunicationSock: TCrtSocket;
+    // read a packages in format package-length:JSON
     function sockRead(out packet: RawUTF8): boolean;
     procedure sockWrite(const packet: RawUTF8);
     procedure HandleMessage(const request: Variant);
@@ -550,19 +544,22 @@ function TSMRemoteDebuggerCommunicationThread.sockRead(out packet: RawUTF8): boo
 const
   bufSize = 8;
 var
-  buf: string[bufSize];
+  buf: array [0..bufSize] of Byte;
   ch: PUTF8Char;
-  len, head: integer;
+  len, head, bytesToRead: integer;
 begin
-  Result := (fCommunicationSock <> nil) and fCommunicationSock.TrySockRecv(@buf[1], bufSize);
+  bytesToRead := bufSize;
+  FillChar(buf, Length(buf), #0);
+  Result := (fCommunicationSock <> nil) and fCommunicationSock.TrySockRecv(@buf[1], bytesToRead);
   if not Result then
     exit;
   ch := @buf[1];
-  len := GetNextItemInteger(ch, ':');
+  len := GetNextItemCardinal(ch, ':');
   SetLength(packet, len);
   head := bufSize - (ch - @buf[1]);
   Move(ch^, packet[1], head);
-  Result := fCommunicationSock.TrySockRecv(@packet[head + 1], len - head);
+  bytesToRead := len - head;
+  Result := fCommunicationSock.TrySockRecv(@packet[head + 1], bytesToRead);
 end;
 
 procedure TSMRemoteDebuggerCommunicationThread.sockWrite(const packet: RawUTF8);

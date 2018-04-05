@@ -235,7 +235,7 @@ procedure AddBcd(WR: TTextWriter; const AValue: TBcd);
 type
   /// a string buffer, used by InternalBCDToBuffer to store its output text
   TBCDBuffer = array[0..66] of AnsiChar;
-  
+
 /// convert a TBcd value as text to the output buffer
 // - buffer is to be array[0..66] of AnsiChar
 // - returns the resulting text start in PBeg, and the length as function result
@@ -452,7 +452,7 @@ begin
   RowIndex := PRecInfo(ActiveBuffer).RowIndentifier;
   Data := GetRowFieldData(Field,RowIndex,DataLen,OnlyTestForNull);
   result := Data<>nil; // null field or out-of-range RowIndex/Field
-  if OnlyTestForNull then
+  if OnlyTestForNull or not result then
     exit;
   Dest := pointer(Buffer); // works also if Buffer is [var] TValueBuffer
   case Field.DataType of // Data^ points to Int64,Double,Blob,UTF8
@@ -460,7 +460,7 @@ begin
     PWORDBOOL(Dest)^ := PBoolean(Data)^;
   ftInteger:
     PInteger(Dest)^ := PInteger(Data)^;
-  ftLargeint, ftFloat, ftCurrency,ftBCD:
+  ftLargeint, ftFloat, ftCurrency:
     PInt64(Dest)^ := PInt64(Data)^;
   ftDate, ftTime, ftDateTime:
     if PDateTime(Data)^=0 then // handle 30/12/1899 date as NULL

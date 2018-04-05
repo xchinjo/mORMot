@@ -310,7 +310,7 @@ const
   WSAHOST_NOT_FOUND = HOST_NOT_FOUND;
   WSAETIMEDOUT = ETIMEDOUT;
   WSAEMFILE = EMFILE;
-  
+
 {$endif FPC}
 
 
@@ -411,6 +411,7 @@ const
   SockWship6Api = true;
 
 type
+  PVarSin = ^TVarSin;
   TVarSin = packed record
     {$ifdef SOCK_HAS_SINLEN}
     sin_len: cuchar;
@@ -571,6 +572,8 @@ function epoll_wait(epfd: integer; events: PEPollEvent; maxevents, timeout: inte
 function epoll_close(epfd: integer): integer;
 {$endif Linux}
 
+var
+  SynSockCS: TRTLCriticalSection;
 
 implementation
 
@@ -626,14 +629,8 @@ begin
   with WSData do begin
     wVersion := wVersionRequired;
     wHighVersion := $202;
-    {$ifdef FPC}
-    szDescription := 'Synopse CrossPlatform Socket Layer';
-    szSystemStatus := 'Running on Unix/Linux by FreePascal';
-    {$endif}
-    {$ifdef KYLIX3}
-    {$endif}
-    szDescription := 'Synopse CrossPlatform Socket Layer';
-    szSystemStatus := 'Running on Unix/Linux by Kylix';
+    szDescription := 'Synopse Sockets';
+    szSystemStatus := 'Linux';
     iMaxSockets := 32768;
     iMaxUdpDg := 8192;
   end;
@@ -818,7 +815,7 @@ begin
     result := SOCKET_ERROR;
 end;
 
-function  IoctlSocket(s: TSocket; cmd: DWORD; var arg: integer): Integer;
+function IoctlSocket(s: TSocket; cmd: DWORD; var arg: integer): Integer;
 begin
   {$ifdef KYLIX3}
   result := ioctl(s,cmd,@arg);
@@ -1223,5 +1220,8 @@ end;
 initialization
   SET_IN6_IF_ADDR_ANY(@in6addr_any);
   SET_LOOPBACK_ADDR6(@in6addr_loopback);
+  InitializeCriticalSection(SynSockCS);
 
+finalization
+  DeleteCriticalSection(SynSockCS);
 end.
