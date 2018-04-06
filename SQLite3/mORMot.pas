@@ -42338,7 +42338,6 @@ var Ctxt: TSQLRestServerURIContext;
 begin
   {$ifdef WITHLOG}
   log := fLogClass.Enter('URI(% % inlen=%)',[Call.Method,Call.Url,length(Call.InBody)],self);
-  //log.Log(sllCustom4,'ABCSoft --->  #014 procedure TSQLRestServer.URI');
   {$endif}
   QueryPerformanceCounter(timeStart);
   fStats.AddCurrentRequestCount(1);
@@ -49750,7 +49749,9 @@ var humanread: boolean;
     json: RawUTF8;
 begin
   humanread := woHumanReadable in Options;
-  Exclude(Options,woHumanReadable);
+  if humanread and (woHumanReadableEnumSetAsComment in Options) then
+    humanread := false else  // JsonReformat() erases comments
+    Exclude(Options,woHumanReadable);
   json := ObjectToJSON(Value,Options);
   if humanread then
     // woHumanReadable not working with custom JSON serializers, e.g. T*ObjArray
@@ -51923,7 +51924,7 @@ var Added: boolean;
       end;
       tkDynArray: begin
         P^.GetDynArray(Value,dyn);
-        if not ((woDontStore0 in Options) and (dyn.Count>0)) then begin
+        if not ((woDontStore0 in Options) and (dyn.Count=0)) then begin
           HR(P);
           dynObjArray := P^.DynArrayIsObjArrayInstance;
           if dynObjArray<>nil then begin
