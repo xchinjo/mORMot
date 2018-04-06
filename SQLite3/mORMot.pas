@@ -33402,6 +33402,7 @@ begin
   result.Void;
 end;
 
+// ABCSoft Customization
 procedure TSQLRecord.ComputeFieldsBeforeWrite(aRest: TSQLRest; aOccasion: TSQLEvent);
 var F: integer;
     types: TSQLFieldTypes;
@@ -33425,7 +33426,7 @@ begin
 
       if sftModUTime in HasTypeFields then  // Shadow modify / create Unix Time
       begin
-
+        i64 := aRest.ServerTimestamp;  // set modify / create time time
         if i64<>0 then
           for F := 0 to Fields.Count-1 do
           with TSQLPropInfoRTTIUnixTime(Fields.List[f]) do
@@ -33436,6 +33437,7 @@ begin
       end;
       if (sftCreateUTime in HasTypeFields) and (aOccasion=seAdd) then
       begin
+         i64 := aRest.ServerTimestamp;  // set modify / create time time
         if i64<>0 then
           for F := 0 to Fields.Count-1 do
           with TSQLPropInfoRTTIUnixTime(Fields.List[f]) do
