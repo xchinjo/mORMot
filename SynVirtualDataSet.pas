@@ -451,7 +451,6 @@ begin
   OnlyTestForNull := (Buffer=nil);
   RowIndex := PRecInfo(ActiveBuffer).RowIndentifier;
   Data := GetRowFieldData(Field,RowIndex,DataLen,OnlyTestForNull);
-
   result := Data<>nil; // null field or out-of-range RowIndex/Field
   if OnlyTestForNull or not result then
     exit;
@@ -463,10 +462,9 @@ begin
     PInteger(Dest)^ := PInteger(Data)^;
   ftLargeint, ftFloat, ftCurrency,ftBCD:
     PInt64(Dest)^ := PInt64(Data)^;
-  ftDate, ftTime, ftDateTime:  // result := false  ;
-    if PDateTime(Data)^=0 then // handle 30/12/1899 date as NULL   // PDateTime
-      result := false else
-    begin  // inlined   DataConvert(Field,Data,Dest,true);
+  ftDate, ftTime, ftDateTime:
+    if PDateTime(Data)^=0 then // handle 30/12/1899 date as NULL
+      result := false else begin  // inlined DataConvert(Field,Data,Dest,true)
       TS := DateTimeToTimeStamp(PDateTime(Data)^);
       case Field.DataType of
       ftDate:     PDateTimeRec(Dest)^.Date := TS.Date;
@@ -477,8 +475,6 @@ begin
           PDateTimeRec(Dest)^.DateTime := TimeStampToMSecs(TS);
       end; // see NativeToDateTime/DateTimeToNative in TDataSet.DataConvert
     end;
-
-
   ftString: begin
     if DataLen<>0 then begin
       CurrentAnsiConvert.UTF8BufferToAnsi(Data,DataLen,Temp);

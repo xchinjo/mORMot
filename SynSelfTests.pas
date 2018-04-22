@@ -477,10 +477,8 @@ type
     procedure InMemoryCompression;
     /// .gzip archive handling
     procedure GZIPFormat;
-    {$ifndef LINUX}
     /// .zip archive handling
     procedure ZIPFormat;
-    {$endif}
     /// SynLZO internal format
     procedure _SynLZO;
     /// SynLZ internal format
@@ -2876,6 +2874,7 @@ procedure TTestLowLevelCommon._IsMatch;
 var i: integer;
     V: RawUTF8;
     match: TMatch;
+    reuse: boolean;
 begin
   Check(IsMatch('','',true));
   Check(not IsMatch('','toto',true));
@@ -2931,24 +2930,78 @@ begin
   Check(not IsMatch(V,'this is a zest',false));
   Check(not IsMatch(V,'this as a test',false));
   Check(not IsMatch(V,'this as a rest',false));
-  match.Prepare(V, false, true);
-  Check(not match.Match(V));
-  Check(match.Match('this is a test'));
-  Check(match.Match('this is a rest'));
-  Check(not match.Match('this is a zest'));
-  match.Prepare('test', false, true);
-  check(match.Match('test'));
-  check(not match.Match('tes'));
-  check(not match.Match('teste'));
-  check(not match.Match('tesT'));
-  match.Prepare('teST', true, true);
-  check(match.Match('test'));
-  check(match.Match('test'));
-  match.Prepare('test*', false, true);
-  check(match.Match('test'));
-  check(match.Match('teste'));
-  check(match.Match('tester'));
-  check(not match.Match('tes'));
+  for reuse := false to true do begin  // ensure very same behavior
+    match.Prepare(V, false, reuse);
+    Check(not match.Match(V));
+    Check(match.Match('this is a test'));
+    Check(match.Match('this is a rest'));
+    Check(not match.Match('this is a zest'));
+    match.Prepare('test', false, reuse);
+    check(match.Match('test'));
+    check(not match.Match('tes'));
+    check(not match.Match('tests'));
+    check(not match.Match('tesT'));
+    match.Prepare('teST', true, reuse);
+    check(match.Match('test'));
+    check(match.Match('test'));
+    match.Prepare('test*', false, reuse);
+    check(match.Match('test'));
+    check(match.Match('tests'));
+    check(match.Match('tester'));
+    check(not match.Match('atest'));
+    check(not match.Match('tes'));
+    check(not match.Match('tEst'));
+    check(not match.Match('tesT'));
+    check(not match.Match('t'));
+    match.Prepare('**', false, reuse);
+    check(match.Match('') = reuse);
+    check(match.Match('test'));
+    match.Prepare('*test*', false, reuse);
+    check(match.Match('test'));
+    check(match.Match('tests'));
+    check(match.Match('tester'));
+    check(match.Match('atest'));
+    check(match.Match('ateste'));
+    check(match.Match('abtest'));
+    check(match.Match('abtester'));
+    check(not match.Match('tes'));
+    check(not match.Match('ates'));
+    check(not match.Match('tesates'));
+    check(not match.Match('tesT'));
+    check(not match.Match('Teste'));
+    check(not match.Match('TEster'));
+    check(not match.Match('atEst'));
+    check(not match.Match('ateSTe'));
+    match.Prepare('*12*', false, reuse);
+    check(match.Match('12'));
+    check(match.Match('12e'));
+    check(match.Match('12er'));
+    check(match.Match('a12'));
+    check(match.Match('a12e'));
+    check(match.Match('ab12'));
+    check(match.Match('ab12er'));
+    check(not match.Match('1'));
+    check(not match.Match('a1') = reuse); //TODO: fix bug in MatchAfterStar
+    check(not match.Match('1a2'));
+    match.Prepare('*teSt*', true, reuse);
+    check(match.Match('test'));
+    check(match.Match('teste'));
+    check(match.Match('tester'));
+    check(match.Match('atest'));
+    check(match.Match('ateste'));
+    check(match.Match('abtest'));
+    check(match.Match('abtester'));
+    check(match.Match('tesT'));
+    check(match.Match('Teste'));
+    check(match.Match('TEster'));
+    check(match.Match('atEst'));
+    check(match.Match('ateSTe'));
+    check(match.Match('abteST'));
+    check(match.Match('abtEster'));
+    check(not match.Match('tes'));
+    check(not match.Match('ates'));
+    check(not match.Match('tesates'));
+  end;
   for i := 32 to 127 do begin
     SetLength(V,1);
     V[1] := AnsiChar(i);
@@ -4074,6 +4127,8 @@ begin
   U := SynUnicodeToUtf8(SU);
   if not CheckFailed(length(U)=4) then
     Check(PCardinal(U)^=$92b3a8f0);
+  U := TSynAnsiConvert.Engine(CP_UTF8).UnicodeBufferToAnsi(pointer(SU), length(SU));
+  Check(length(U)=4);
   SetLength(res,10);
   PB := pointer(res);
   PB := ToVarString(U,PB);
@@ -9747,8 +9802,6 @@ begin
 end;
 
 
-{$ifndef LINUX} // TZipRead not defined yet (use low-level file mapping WinAPI)
-
 procedure TTestCompression.ZipFormat;
 var FN,FN2: TFileName;
     ExeName: string;
@@ -9816,6 +9869,7 @@ begin
     Free;
   end;
 end;
+{$ifdef MSWINDOWS}
 procedure TestPasZipRead(const FN: TFileName; Count: integer);
 var pasZR: PasZip.TZipRead;
 begin
@@ -9829,7 +9883,8 @@ begin
   end;
 end;
 var pasZW: PasZip.TZipWrite;
-    i: integer;
+{$endif}
+var i: integer;
 begin
   ExeName := ExtractFileName(ExeVersion.ProgramFileName);
   FN := ChangeFileExt(ExeVersion.ProgramFileName,'.zip');
@@ -9851,6 +9906,7 @@ begin
     Free;
   end;
   Test(TZipRead.Create(FN),5);
+  {$ifdef MSWINDOWS}
   TestPasZipRead(FN,5);
   FN2 := ChangeFileExt(FN,'2.zip');
   pasZW := PasZip.TZipWrite.Create(FN2);
@@ -9868,13 +9924,14 @@ begin
   end;
   TestPasZipRead(FN2,4);
   DeleteFile(FN2);
+  {$endif}
   DeleteFile(FN);
   FN2 := ExeVersion.ProgramFilePath+'ddd.zip';
   with TZipWrite.Create(FN2) do
   try
     FN := ExeVersion.ProgramFilePath+'ddd';
     if not DirectoryExists(FN) then
-      FN := ExeVersion.ProgramFilePath+'..\ddd';
+      FN := ExeVersion.ProgramFilePath+'..'+PathDelim+'ddd';
     if DirectoryExists(FN) then begin
       AddFolder(FN,'*.pas');
       Check(Count>10);
@@ -9886,8 +9943,6 @@ begin
   end;
   DeleteFile(FN2);
 end;
-
-{$endif LINUX}
 
 procedure TTestCompression._SynLZO;
 var s,t: AnsiString;

@@ -40595,8 +40595,9 @@ begin
           aSession := Server.fSessionAuthentication[i].RetrieveSession(self);
           if aSession<>nil then begin
             {$ifdef WITHLOG}
-            Log.Log(sllUserAuth,'%/% %',[aSession.User.LogonName,aSession.ID,
-              aSession.RemoteIP],self);
+            if (aSession.RemoteIP<>'') and (aSession.RemoteIP<>'127.0.0.1') then
+              Log.Log(sllUserAuth,'%/% %',[aSession.User.LogonName,aSession.ID,
+                aSession.RemoteIP],self);
             {$endif}
             result := true;
             exit;
@@ -40798,7 +40799,8 @@ begin
       end;
       Stats.Processing := true;
     end;
-    Server.InternalLog('% %',[Name,Parameters],sllServiceCall);
+    if Parameters<>'' then
+      Server.InternalLog('% %',[Name,Parameters],sllServiceCall);
     CallBack(self);
     if Stats<>nil then begin
       QueryPerformanceCounter(timeEnd);
@@ -40962,8 +40964,9 @@ begin // expects Service, ServiceParameters, ServiceMethod(Index) to be set
       if [smdVar,smdOut,smdResult]*HasSPIParams<>[] then
         include(ServiceExecutionOptions,optNoLogOutput);
     end;
-    {$ifdef WITHLOG}
-    if sllServiceCall in Log.GenericFamily.Level then
+    {$ifdef WITHLOG} // load method call and parameter values (if worth it)
+    if (sllServiceCall in Log.GenericFamily.Level) and (ServiceParameters<>nil) and
+       (PWord(ServiceParameters)^<>ord('[')+ord(']') shl 8) then
       if optNoLogInput in ServiceExecutionOptions then
         Log.Log(sllServiceCall,'%{}',
           [PServiceMethod(ServiceMethod)^.InterfaceDotMethodName],Server) else
@@ -50411,7 +50414,7 @@ begin
   fSourceID^ := aSourceID;
   fDestID^ := aDestID;
   if aUseBatch<>nil then
-    result := aUseBatch.Add(self,true)<>0 else
+    result := aUseBatch.Add(self,true)>=0 else
     result := aClient.Add(self,true)<>0;
 end;
 
@@ -62511,7 +62514,9 @@ initialization
   {$ifndef USENORMTOUPPER}
   pointer(@SQLFieldTypeComp[sftUTF8Text]) := @AnsiIComp;
   {$endif}
+  {$ifdef MSWINDOWS} // don't change the main process name under Linux
   SetThreadNameDefault(GetCurrentThreadID,'Main Thread');
+  {$endif}
   SetThreadNameInternal := SetThreadNameWithLog;
   StatusCodeToErrorMessage := StatusCodeToErrorMsgBasic;
   GarbageCollectorFreeAndNil(JSONCustomParsers,TSynDictionary.Create(
