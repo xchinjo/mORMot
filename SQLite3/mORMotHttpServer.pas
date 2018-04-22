@@ -678,6 +678,16 @@ begin
     fLog := aServers[0].LogClass;
   log := fLog.Enter('Create % (%) on port %',[ToText(aHttpServerKind)^,
     ToText(aHttpServerSecurity)^,aPort],self);
+  log.Log(sllCustom4,'   _____  __________ _________    _________         _____   __    ________ _______   ____   ______');
+  log.Log(sllCustom4,'  /  _  \ \______   \\_   ___ \  /   _____/  ____ _/ ____\_/  |_  \_____  \\   _  \ /_   | /  __  \');
+  log.Log(sllCustom4,' /  /_\  \ |    |  _//    \  \/  \_____  \  /  _ \\   __\ \   __\  /  ____//  /_\  \ |   | >      <');
+  log.Log(sllCustom4,'/    |    \|    |   \\     \____ /        \(  <_> )|  |    |  |   /       \\  \_/   \|   |/   --   \');
+  log.Log(sllCustom4,'\____|__  /|______  / \______  //_______  / \____/ |__|    |__|   \_______ \\_____  /|___|\______  /');
+  log.Log(sllCustom4,'        \/        \/         \/         \/                                \/      \/             \/');
+  log.Log(sllCustom4,'');
+
+
+
   {$endif}
   fDBServersSafe := TAutoLocker.Create;
   inherited Create;

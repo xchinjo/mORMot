@@ -4505,6 +4505,13 @@ var utf8: RawUTF8;
     FPCLog: ISynLog;
 begin
   FPCLog := fLog.Enter('DBOpen %',[fFileNameWithoutPath],self);
+  FPCLog.Log(sllCustom4,'   _____  __________ _________    _________         _____   __    ________ _______   ____   ______');
+  FPCLog.Log(sllCustom4,'  /  _  \ \______   \\_   ___ \  /   _____/  ____ _/ ____\_/  |_  \_____  \\   _  \ /_   | /  __  \');
+  FPCLog.Log(sllCustom4,' /  /_\  \ |    |  _//    \  \/  \_____  \  /  _ \\   __\ \   __\  /  ____//  /_\  \ |   | >      <');
+  FPCLog.Log(sllCustom4,'/    |    \|    |   \\     \____ /        \(  <_> )|  |    |  |   /       \\  \_/   \|   |/   --   \');
+  FPCLog.Log(sllCustom4,'\____|__  /|______  / \______  //_______  / \____/ |__|    |__|   \_______ \\_____  /|___|\______  /');
+  FPCLog.Log(sllCustom4,'        \/        \/         \/         \/                                \/      \/             \/');
+  FPCLog.Log(sllCustom4,'');
 {$else}
 begin
 {$endif}
